@@ -1,0 +1,10 @@
+{
+  "mcpServers": {
+    "mcp-memory": {
+      "type": "stdio",
+      "command": "pnpm",
+      "args": ["--dir", "/absolute/path/to/mcp-memory", "start"],
+      "env": {}
+    }
+  }
+}

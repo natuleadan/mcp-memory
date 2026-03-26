@@ -23,6 +23,7 @@ import { registerPurgeOldMemoriesTool } from './tools/purge-old-memories.js'
 import { registerBatchSearchMemoriesTool } from './tools/batch-search-memories.js'
 import { registerMemoryVersionsTool } from './tools/memory-versions.js'
 import { registerGetContextForTaskTool } from './tools/get-context-for-task.js'
+import { registerSearchGlobalTool } from './tools/search-global.js'
 
 const server = new McpServer({ name: 'mcp-memory', version: '1.0.0' })
 
@@ -32,6 +33,7 @@ registerSearchDocsTool(server)
 registerSearchMemoryTool(server)
 registerSearchMemoriesTool(server)
 registerSearchMemoriesLiteTool(server)
+registerSearchGlobalTool(server)
 // Core memory CRUD
 registerSaveMemoryTool(server)
 registerUpdateMemoryTool(server)
@@ -54,7 +56,7 @@ async function main() {
   await ensureOllama()
   const transport = new StdioServerTransport()
   await server.connect(transport)
-  console.error('🧠 mcp-memory server running (20 tools: core CRUD + search + context optimization)')
+  console.error('🧠 mcp-memory server running (21 tools: core CRUD + search + global search + context optimization)')
 }
 
 main().catch(console.error)

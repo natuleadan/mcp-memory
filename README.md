@@ -10,7 +10,8 @@
   <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-blue.svg?style=for-the-badge" alt="MIT License" /></a>
   <img src="https://img.shields.io/badge/LanceDB-local-green?style=for-the-badge" alt="LanceDB" />
   <img src="https://img.shields.io/badge/Ollama-nomic--embed-purple?style=for-the-badge" alt="Ollama" />
-  <img src="https://img.shields.io/badge/Tools-20-blue?style=for-the-badge" alt="20 Tools" />
+  <img src="https://img.shields.io/badge/Status-In%20Development-orange?style=for-the-badge" alt="In Development" />
+  <img src="https://img.shields.io/badge/Tools-21-blue?style=for-the-badge" alt="21 Tools" />
 </p>
 
 > ⚠️ **Active Development** — APIs and tools may change without prior notice. Use tagged releases (`vX.Y.Z`) for stability.
@@ -55,7 +56,7 @@ Automatic snapshot saved every time `upsert_memory` modifies an existing entry. 
 
 ---
 
-## Tools (20 total)
+## Tools (21 total)
 
 ### Session start
 
@@ -76,6 +77,7 @@ Automatic snapshot saved every time `upsert_memory` modifies an existing entry. 
 
 | Tool | Description |
 |------|-------------|
+| `search_global` | ⭐ Unified search across all 4 layers (memories, codebase, docs, chatlogs) in parallel. Compact mode (~2-3k tokens) returns excerpts + location |
 | `search_memories` | Full semantic search — returns complete body |
 | `search_memories_lite` | Semantic search — returns 200-char excerpts only (saves tokens) |
 | `batch_search_memories` | Multiple queries (newline-separated) in parallel |

@@ -8,7 +8,7 @@ export function registerSearchDocsTool(server: McpServer) {
     'Semantic search in documentation (.md .sql .json). Use to find rules, guides, SQL schemas or configuration.',
     {
       query: z.string().describe('What to search for in the documentation'),
-      limit: z.number().default(5).describe('Number of results'),
+      limit: z.coerce.number().default(5).describe('Number of results'),
     },
     async ({ query, limit }) => {
       try {

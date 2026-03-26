@@ -8,7 +8,7 @@ export function registerSearchMemoriesTool(server: McpServer) {
     'Semantic search over saved memories (user, feedback, project, reference).',
     {
       query: z.string().describe('What to search for in memories'),
-      limit: z.number().default(5).describe('Number of results'),
+      limit: z.coerce.number().default(5).describe('Number of results'),
       type: z.enum(['soul', 'user', 'feedback', 'project', 'reference', 'pending', 'all']).default('all').describe('Filter by type or "all"'),
     },
     async ({ query, limit, type }) => {

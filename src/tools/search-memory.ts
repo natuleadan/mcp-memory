@@ -8,7 +8,7 @@ export function registerSearchMemoryTool(server: McpServer) {
     'Semantic search in conversation history/chatlogs.',
     {
       query: z.string().describe('What to search for in the conversation history'),
-      limit: z.number().default(5),
+      limit: z.coerce.number().default(5),
     },
     async ({ query, limit }) => {
       try {

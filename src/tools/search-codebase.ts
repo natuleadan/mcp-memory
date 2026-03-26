@@ -8,7 +8,7 @@ export function registerSearchCodebaseTool(server: McpServer) {
     'Semantic search in source code (.ts .tsx .js .jsx). Use to find implementations, functions, services, hooks or components.',
     {
       query: z.string().describe('What to search for in the source code'),
-      limit: z.number().default(5).describe('Number of results'),
+      limit: z.coerce.number().default(5).describe('Number of results'),
     },
     async ({ query, limit }) => {
       try {

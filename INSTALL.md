@@ -4,7 +4,27 @@ How to connect `mcp-memory` to different AI clients as an MCP server.
 
 ---
 
-## 1. Install Ollama
+## Quick start (recommended)
+
+If you have Node.js and pnpm already installed, a single command handles Ollama installation, model download, and verification:
+
+```bash
+git clone https://github.com/natuleadan/mcp-memory
+cd mcp-memory
+pnpm install
+pnpm bootstrap
+```
+
+`pnpm bootstrap` detects your OS (macOS, Linux, Windows) and:
+- Installs Ollama if not present
+- Starts Ollama in the background
+- Downloads the `nomic-embed-text` embedding model
+
+Then skip to [step 4](#4-configure-environment-variables).
+
+---
+
+## 1. Install Ollama (manual)
 
 Ollama runs the local embedding model (`nomic-embed-text`) used to index and search.
 
@@ -313,11 +333,15 @@ The server communicates over stdin/stdout using MCP JSON-RPC. No network port ne
 **`nomic-embed-text` model not found:**
 ```bash
 ollama pull nomic-embed-text
+# or re-run bootstrap:
+pnpm bootstrap
 ```
 
 **Ollama not running:**
 ```bash
 ollama serve   # or open the Ollama app on macOS
+# or re-run bootstrap (detects and starts automatically):
+pnpm bootstrap
 ```
 
 **`pnpm` not found in PATH:**

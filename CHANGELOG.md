@@ -5,6 +5,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.1.0](https://github.com/natuleadan/mcp-memory/compare/v1.0.0...v1.1.0) (2026-03-26)
+
+### ✨ Features
+
+* **setup:** add cross-platform bootstrap script ([3389303](https://github.com/natuleadan/mcp-memory/commit/3389303b869fc67df59ffa376adfdd6237c47a3d))
+
 ## 1.0.0 (2026-03-22)
 
 ### ✨ Features

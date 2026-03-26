@@ -15,14 +15,16 @@ export function registerSearchCodebaseTool(server: McpServer) {
         const vector = await embed(query)
         const table = await getTable('codebase')
         const results = await table.search(vector).limit(limit).toArray()
-        const formatted = results.map((r: { rel_path: string; text: string }) =>
-          `### ${r.rel_path}\n\`\`\`\n${r.text}\n\`\`\``
+        const formatted = results.map(
+          (r: { rel_path: string; text: string }) => `### ${r.rel_path}\n\`\`\`\n${r.text}\n\`\`\``
         )
         return {
           content: [{ type: 'text', text: formatted.join('\n\n---\n\n') || 'No results.' }],
         }
       } catch {
-        return { content: [{ type: 'text', text: 'Codebase not indexed yet. Run pnpm index:code' }] }
+        return {
+          content: [{ type: 'text', text: 'Codebase not indexed yet. Run pnpm index:code' }],
+        }
       }
     }
   )

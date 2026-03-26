@@ -15,8 +15,8 @@ export function registerSearchDocsTool(server: McpServer) {
         const vector = await embed(query)
         const table = await getTable('docs')
         const results = await table.search(vector).limit(limit).toArray()
-        const formatted = results.map((r: { rel_path: string; text: string }) =>
-          `### ${r.rel_path}\n${r.text}`
+        const formatted = results.map(
+          (r: { rel_path: string; text: string }) => `### ${r.rel_path}\n${r.text}`
         )
         return {
           content: [{ type: 'text', text: formatted.join('\n\n---\n\n') || 'No results.' }],

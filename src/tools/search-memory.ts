@@ -15,14 +15,17 @@ export function registerSearchMemoryTool(server: McpServer) {
         const vector = await embed(query)
         const table = await getTable('chatlogs')
         const results = await table.search(vector).limit(limit).toArray()
-        const formatted = results.map((r: { date: string; rel_path: string; text: string }) =>
-          `### ${r.rel_path} (${r.date})\n${r.text}`
+        const formatted = results.map(
+          (r: { date: string; rel_path: string; text: string }) =>
+            `### ${r.rel_path} (${r.date})\n${r.text}`
         )
         return {
           content: [{ type: 'text', text: formatted.join('\n\n---\n\n') || 'No results.' }],
         }
       } catch {
-        return { content: [{ type: 'text', text: 'Chatlogs not indexed yet. Run pnpm index:chatlogs' }] }
+        return {
+          content: [{ type: 'text', text: 'Chatlogs not indexed yet. Run pnpm index:chatlogs' }],
+        }
       }
     }
   )

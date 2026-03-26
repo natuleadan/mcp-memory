@@ -10,7 +10,11 @@ export function registerGetMemoryStatsTool(server: McpServer) {
       try {
         const table = await getMemoriesTable()
         const rows = (await table.query().where(`id != '__init__'`).toArray()) as Array<{
-          id: string; type: string; body: string; updated_at: string; created_at: string
+          id: string
+          type: string
+          body: string
+          updated_at: string
+          created_at: string
         }>
 
         if (!rows.length) return { content: [{ type: 'text', text: 'No memories found.' }] }

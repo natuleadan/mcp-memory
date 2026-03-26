@@ -16,8 +16,15 @@ export function registerUpdateMemoryTool(server: McpServer) {
       try {
         const table = await getMemoriesTable()
         const rows = await table.query().where(`id = '${id}'`).toArray()
-        if (!rows.length) return { content: [{ type: 'text', text: `Memory id "${id}" not found.` }] }
-        const existing = rows[0] as { type: string; name: string; body: string; tags: string; created_at: string }
+        if (!rows.length)
+          return { content: [{ type: 'text', text: `Memory id "${id}" not found.` }] }
+        const existing = rows[0] as {
+          type: string
+          name: string
+          body: string
+          tags: string
+          created_at: string
+        }
         const newName = name ?? existing.name
         const newBody = body ?? existing.body
         const newTags = tags ?? existing.tags
@@ -25,7 +32,18 @@ export function registerUpdateMemoryTool(server: McpServer) {
         const updated_at = new Date().toISOString()
         // Delete + re-insert to avoid vector column type issues
         await table.delete(`id = '${id}'`)
-        await table.add([{ id, type: existing.type, name: newName, body: newBody, tags: newTags, created_at: existing.created_at, updated_at, vector }])
+        await table.add([
+          {
+            id,
+            type: existing.type,
+            name: newName,
+            body: newBody,
+            tags: newTags,
+            created_at: existing.created_at,
+            updated_at,
+            vector,
+          },
+        ])
         return { content: [{ type: 'text', text: `Memory "${id}" updated.` }] }
       } catch (e) {
         return { content: [{ type: 'text', text: `Error updating memory: ${String(e)}` }] }

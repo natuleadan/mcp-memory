@@ -56,7 +56,9 @@ async function main() {
   await ensureOllama()
   const transport = new StdioServerTransport()
   await server.connect(transport)
-  console.error('🧠 mcp-memory server running (21 tools: core CRUD + search + global search + context optimization)')
+  console.error(
+    '🧠 mcp-memory server running (21 tools: core CRUD + search + global search + context optimization)'
+  )
 }
 
 main().catch(console.error)

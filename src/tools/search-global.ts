@@ -9,7 +9,10 @@ export function registerSearchGlobalTool(server: McpServer) {
     {
       query: z.string().describe('What to search for across all memory layers'),
       limit: z.coerce.number().default(3).describe('Max results per table (default: 3)'),
-      mode: z.enum(['compact', 'full']).default('compact').describe('compact (excerpts + location) | full (complete bodies)'),
+      mode: z
+        .enum(['compact', 'full'])
+        .default('compact')
+        .describe('compact (excerpts + location) | full (complete bodies)'),
     },
     async ({ query, limit, mode }) => {
       try {
@@ -22,9 +25,13 @@ export function registerSearchGlobalTool(server: McpServer) {
             try {
               const table = await getMemoriesTable()
               const rows = (await table.search(vector).limit(limit).toArray()) as Array<{
-                id: string; type: string; name: string; body: string; updated_at: string
+                id: string
+                type: string
+                name: string
+                body: string
+                updated_at: string
               }>
-              return rows.filter(r => r.id !== '__init__')
+              return rows.filter((r) => r.id !== '__init__')
             } catch {
               return []
             }
@@ -33,7 +40,9 @@ export function registerSearchGlobalTool(server: McpServer) {
             try {
               const table = await getTable('codebase')
               return (await table.search(vector).limit(limit).toArray()) as Array<{
-                rel_path: string; ext: string; text: string
+                rel_path: string
+                ext: string
+                text: string
               }>
             } catch {
               return []
@@ -43,7 +52,9 @@ export function registerSearchGlobalTool(server: McpServer) {
             try {
               const table = await getTable('docs')
               return (await table.search(vector).limit(limit).toArray()) as Array<{
-                rel_path: string; ext: string; text: string
+                rel_path: string
+                ext: string
+                text: string
               }>
             } catch {
               return []
@@ -53,7 +64,9 @@ export function registerSearchGlobalTool(server: McpServer) {
             try {
               const table = await getTable('chatlogs')
               return (await table.search(vector).limit(limit).toArray()) as Array<{
-                rel_path: string; date: string; text: string
+                rel_path: string
+                date: string
+                text: string
               }>
             } catch {
               return []
@@ -63,8 +76,9 @@ export function registerSearchGlobalTool(server: McpServer) {
 
         // Format results by source_type
         if (memoriesResults.length) {
-          const lines = memoriesResults.map(r => {
-            const excerpt = r.body.slice(0, 200).replace(/\n/g, ' ') + (r.body.length > 200 ? '…' : '')
+          const lines = memoriesResults.map((r) => {
+            const excerpt =
+              r.body.slice(0, 200).replace(/\n/g, ' ') + (r.body.length > 200 ? '…' : '')
             const body = mode === 'full' ? `\n${r.body}` : ''
             return `  - **${r.name}** (\`${r.type}\`) [${r.id}]\n    📍 Memory\n    ${excerpt}${body}`
           })
@@ -72,8 +86,9 @@ export function registerSearchGlobalTool(server: McpServer) {
         }
 
         if (codebaseResults.length) {
-          const lines = codebaseResults.map(r => {
-            const excerpt = r.text.slice(0, 200).replace(/\n/g, ' ') + (r.text.length > 200 ? '…' : '')
+          const lines = codebaseResults.map((r) => {
+            const excerpt =
+              r.text.slice(0, 200).replace(/\n/g, ' ') + (r.text.length > 200 ? '…' : '')
             const body = mode === 'full' ? `\n\`\`\`${r.ext.slice(1)}\n${r.text}\n\`\`\`` : ''
             return `  - **${r.rel_path}**\n    📍 ${r.rel_path}\n    ${excerpt}${body}`
           })
@@ -81,8 +96,9 @@ export function registerSearchGlobalTool(server: McpServer) {
         }
 
         if (docsResults.length) {
-          const lines = docsResults.map(r => {
-            const excerpt = r.text.slice(0, 200).replace(/\n/g, ' ') + (r.text.length > 200 ? '…' : '')
+          const lines = docsResults.map((r) => {
+            const excerpt =
+              r.text.slice(0, 200).replace(/\n/g, ' ') + (r.text.length > 200 ? '…' : '')
             const body = mode === 'full' ? `\n${r.text}` : ''
             return `  - **${r.rel_path}**\n    📍 ${r.rel_path}\n    ${excerpt}${body}`
           })
@@ -90,24 +106,37 @@ export function registerSearchGlobalTool(server: McpServer) {
         }
 
         if (chatlogsResults.length) {
-          const lines = chatlogsResults.map(r => {
-            const excerpt = r.text.slice(0, 200).replace(/\n/g, ' ') + (r.text.length > 200 ? '…' : '')
+          const lines = chatlogsResults.map((r) => {
+            const excerpt =
+              r.text.slice(0, 200).replace(/\n/g, ' ') + (r.text.length > 200 ? '…' : '')
             const body = mode === 'full' ? `\n${r.text}` : ''
             return `  - **${r.rel_path}** (${r.date})\n    📍 ${r.rel_path}\n    ${excerpt}${body}`
           })
           sections.push(`## Chatlogs (${chatlogsResults.length})\n${lines.join('\n')}`)
         }
 
-        const totalResults = memoriesResults.length + codebaseResults.length + docsResults.length + chatlogsResults.length
+        const totalResults =
+          memoriesResults.length +
+          codebaseResults.length +
+          docsResults.length +
+          chatlogsResults.length
         if (totalResults === 0) {
           return { content: [{ type: 'text', text: 'No results found across any memory layer.' }] }
         }
 
-        const tokenWarning = mode === 'full' && totalResults > 10
-          ? '\n⚠️ **Full mode with many results may exceed token limits.** Consider using `mode: "compact"` instead.'
-          : ''
+        const tokenWarning =
+          mode === 'full' && totalResults > 10
+            ? '\n⚠️ **Full mode with many results may exceed token limits.** Consider using `mode: "compact"` instead.'
+            : ''
 
-        return { content: [{ type: 'text', text: `**Global Search:** "${query}" (${totalResults} total results)${tokenWarning}\n\n${sections.join('\n\n')}` }] }
+        return {
+          content: [
+            {
+              type: 'text',
+              text: `**Global Search:** "${query}" (${totalResults} total results)${tokenWarning}\n\n${sections.join('\n\n')}`,
+            },
+          ],
+        }
       } catch (e) {
         return { content: [{ type: 'text', text: `Error in global search: ${String(e)}` }] }
       }

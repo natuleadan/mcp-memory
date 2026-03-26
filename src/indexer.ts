@@ -11,8 +11,16 @@ const BATCH_SIZE = 10
 const MAX_CHARS = 1800 // nomic-embed-text supports ~2048 tokens; 1800 chars is safe
 
 const IGNORE_DIRS = new Set([
-  'node_modules', '.git', '.next', 'dist', 'build', '.turbo',
-  'coverage', '.cache', 'out', '.pnpm-store',
+  'node_modules',
+  '.git',
+  '.next',
+  'dist',
+  'build',
+  '.turbo',
+  'coverage',
+  '.cache',
+  'out',
+  '.pnpm-store',
 ])
 
 // Table `codebase`: logic and implementations
@@ -47,7 +55,8 @@ function collectFiles(dir: string, allowedExts: Set<string>): { path: string; mt
 }
 
 function chunkCode(content: string): string[] {
-  const BLOCK_START = /^(export\s+)?(async\s+)?(function|class|const\s+\w+\s*=|type\s+\w+|interface\s+\w+|enum\s+\w+)/
+  const BLOCK_START =
+    /^(export\s+)?(async\s+)?(function|class|const\s+\w+\s*=|type\s+\w+|interface\s+\w+|enum\s+\w+)/
   const lines = content.split('\n')
   const chunks: string[] = []
   let current: string[] = []
@@ -89,7 +98,10 @@ async function embed(texts: string[]): Promise<(number[] | null)[]> {
   const results: (number[] | null)[] = []
   for (const text of texts) {
     try {
-      const res = await ollama.embeddings({ model: 'nomic-embed-text', prompt: text.slice(0, MAX_CHARS) })
+      const res = await ollama.embeddings({
+        model: 'nomic-embed-text',
+        prompt: text.slice(0, MAX_CHARS),
+      })
       results.push(res.embedding)
     } catch {
       results.push(null)
@@ -103,7 +115,7 @@ async function indexTable(
   tableName: string,
   sourceDir: string,
   allowedExts: Set<string>,
-  isCode: boolean,
+  isCode: boolean
 ) {
   console.log(`\n📂 Indexing table [${tableName}]: ${sourceDir}`)
 
@@ -125,12 +137,12 @@ async function indexTable(
   const staleIds: string[] = []
   for (const [id, mtime] of existingChunks) {
     const relPath = id.split('#')[0]
-    const fileInfo = files.find(f => relative(sourceDir, f.path) === relPath)
+    const fileInfo = files.find((f) => relative(sourceDir, f.path) === relPath)
     if (!fileInfo || fileInfo.mtime > mtime) staleIds.push(id)
   }
   if (staleIds.length > 0 && table) {
     console.log(`  🗑️  Removing ${staleIds.length} stale chunks from modified files...`)
-    const escaped = staleIds.map(id => `'${id.replace(/'/g, "''")}'`).join(', ')
+    const escaped = staleIds.map((id) => `'${id.replace(/'/g, "''")}'`).join(', ')
     await table.delete(`id IN (${escaped})`)
     for (const id of staleIds) existingChunks.delete(id)
   }
@@ -138,7 +150,11 @@ async function indexTable(
   const allChunks: Omit<Chunk, 'vector'>[] = []
   for (const { path: file, mtime } of files) {
     let content: string
-    try { content = readFileSync(file, 'utf-8') } catch { continue }
+    try {
+      content = readFileSync(file, 'utf-8')
+    } catch {
+      continue
+    }
     if (content.length < 30) continue
 
     const relPath = relative(sourceDir, file)
@@ -162,12 +178,14 @@ async function indexTable(
   const chunks: Chunk[] = []
   for (let i = 0; i < allChunks.length; i += BATCH_SIZE) {
     const batch = allChunks.slice(i, i + BATCH_SIZE)
-    const vectors = await embed(batch.map(c => c.text))
+    const vectors = await embed(batch.map((c) => c.text))
     for (let j = 0; j < batch.length; j++) {
       if (vectors[j] !== null) chunks.push({ ...batch[j], vector: vectors[j]! })
     }
     const done = Math.min(i + BATCH_SIZE, allChunks.length)
-    process.stdout.write(`\r  ${done}/${allChunks.length} chunks (${Math.round(done / allChunks.length * 100)}%)`)
+    process.stdout.write(
+      `\r  ${done}/${allChunks.length} chunks (${Math.round((done / allChunks.length) * 100)}%)`
+    )
   }
   console.log()
 

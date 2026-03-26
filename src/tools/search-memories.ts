@@ -9,7 +9,10 @@ export function registerSearchMemoriesTool(server: McpServer) {
     {
       query: z.string().describe('What to search for in memories'),
       limit: z.coerce.number().default(5).describe('Number of results'),
-      type: z.enum(['soul', 'user', 'feedback', 'project', 'reference', 'pending', 'all']).default('all').describe('Filter by type or "all"'),
+      type: z
+        .enum(['soul', 'user', 'feedback', 'project', 'reference', 'pending', 'all'])
+        .default('all')
+        .describe('Filter by type or "all"'),
     },
     async ({ query, limit, type }) => {
       try {
@@ -18,12 +21,18 @@ export function registerSearchMemoriesTool(server: McpServer) {
         let search = table.search(vector).limit(limit + 1) // +1 to exclude __init__
         if (type !== 'all') search = search.where(`type = '${type}'`)
         const rows = (await search.toArray()) as Array<{
-          id: string; type: string; name: string; body: string; tags: string; updated_at: string
+          id: string
+          type: string
+          name: string
+          body: string
+          tags: string
+          updated_at: string
         }>
-        const filtered = rows.filter(r => r.id !== '__init__').slice(0, limit)
+        const filtered = rows.filter((r) => r.id !== '__init__').slice(0, limit)
         if (!filtered.length) return { content: [{ type: 'text', text: 'No memories found.' }] }
-        const formatted = filtered.map(r =>
-          `**[${r.id}]** \`${r.type}\` — **${r.name}** (${r.updated_at.slice(0, 10)})\n${r.body}`
+        const formatted = filtered.map(
+          (r) =>
+            `**[${r.id}]** \`${r.type}\` — **${r.name}** (${r.updated_at.slice(0, 10)})\n${r.body}`
         )
         return { content: [{ type: 'text', text: formatted.join('\n\n---\n\n') }] }
       } catch (e) {

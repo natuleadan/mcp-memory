@@ -23,16 +23,18 @@ export async function getMemoriesTable() {
   const db = await lancedb.connect(LANCEDB_DIR)
   const tables = await db.tableNames()
   if (!tables.includes('memories')) {
-    return db.createTable('memories', [{
-      id: '__init__',
-      type: 'system',
-      name: 'init',
-      body: 'init',
-      tags: '',
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
-      vector: new Array(EMBED_DIM).fill(0) as number[],
-    }])
+    return db.createTable('memories', [
+      {
+        id: '__init__',
+        type: 'system',
+        name: 'init',
+        body: 'init',
+        tags: '',
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+        vector: new Array(EMBED_DIM).fill(0) as number[],
+      },
+    ])
   }
   return db.openTable('memories')
 }

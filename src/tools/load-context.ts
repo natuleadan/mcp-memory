@@ -2,23 +2,22 @@ import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
 import { z } from 'zod'
 import { getMemoriesTable, getTable } from './utils.js'
 
-// Compact limits to keep token count low (~1-2k tokens max)
-const BODY_PREVIEW = 120  // chars per memory body
-const MAX_FEEDBACK = 10   // only most recent feedback rules
-const MAX_PROJECTS = 5    // only most recent active projects
-const MAX_CHATLOGS = 5    // only most recent chatlog entries
-const CHATLOG_PREVIEW = 200 // chars per chatlog excerpt
-
 export function registerLoadContextTool(server: McpServer) {
   server.tool(
     'load_context',
-    'Loads a COMPACT summary of critical context: soul, user profile, recent feedback rules (name + 120-char preview), active projects (name only), and recent chatlog excerpts. Designed to stay under ~2k tokens. Use get_memory_by_name() or search_memories() to fetch full body of specific entries.',
+    [
+      'Loads critical context at session start. Three modes:',
+      '- minimal: only memory names list (~200 tokens)',
+      '- compact (default): names + 120-char preview (~1-2k tokens)',
+      '- full: complete body for soul+user, previews for feedback+project',
+      'Use get_memory_by_name() or search_memories() to fetch full body of specific entries.',
+    ].join(' '),
     {
-      days: z.coerce.number().default(7).describe('How many days of recent chatlogs to include (default: 7)'),
+      mode: z.enum(['minimal', 'compact', 'full']).default('compact').describe('Output verbosity: minimal | compact (default) | full'),
+      days: z.coerce.number().default(7).describe('Days of recent chatlogs to include (default: 7)'),
     },
-    async ({ days }) => {
+    async ({ mode, days }) => {
       const sections: string[] = []
-      const errors: string[] = []
 
       try {
         const table = await getMemoriesTable()
@@ -30,38 +29,65 @@ export function registerLoadContextTool(server: McpServer) {
         for (const r of rows) {
           if (grouped[r.type]) grouped[r.type].push(r)
         }
+        const byDate = (a: { updated_at: string }, b: { updated_at: string }) => b.updated_at.localeCompare(a.updated_at)
 
-        // Soul — full body (usually short)
-        if (grouped.soul.length) {
-          const lines = grouped.soul.map(r => `- **${r.name}**: ${r.body.slice(0, BODY_PREVIEW)}${r.body.length > BODY_PREVIEW ? '…' : ''}`)
-          sections.push(`## Soul\n${lines.join('\n')}`)
-        }
+        if (mode === 'minimal') {
+          // Only names grouped by type — minimal token usage
+          const lines: string[] = []
+          for (const [type, entries] of Object.entries(grouped)) {
+            if (entries.length) lines.push(`${type}: ${entries.map(r => r.name).join(', ')}`)
+          }
+          sections.push(`## Memory Index\n${lines.join('\n')}`)
 
-        // User — full body (always short)
-        if (grouped.user.length) {
-          sections.push(`## User\n${grouped.user.map(r => r.body).join('\n')}`)
-        }
+        } else if (mode === 'compact') {
+          // Name + 120-char first line — default
+          const PREVIEW = 120
+          const MAX_FEEDBACK = 10
+          const MAX_PROJECTS = 5
 
-        // Feedback — name + short preview, sorted by newest, capped
-        if (grouped.feedback.length) {
-          const sorted = grouped.feedback.sort((a, b) => b.updated_at.localeCompare(a.updated_at)).slice(0, MAX_FEEDBACK)
-          const lines = sorted.map(r => `- **${r.name}** (${r.updated_at.slice(0, 10)}): ${r.body.split('\n')[0].slice(0, BODY_PREVIEW)}`)
-          const remaining = grouped.feedback.length - MAX_FEEDBACK
-          sections.push(`## Feedback Rules (${grouped.feedback.length} total, showing ${sorted.length})\n${lines.join('\n')}${remaining > 0 ? `\n_…${remaining} more — use search_memories(type: "feedback") to see all_` : ''}`)
-        }
+          if (grouped.user.length) {
+            sections.push(`## User\n${grouped.user.map(r => r.body).join('\n')}`)
+          }
+          if (grouped.soul.length) {
+            const lines = grouped.soul.map(r => `- **${r.name}**: ${r.body.slice(0, PREVIEW)}…`)
+            sections.push(`## Soul\n${lines.join('\n')}`)
+          }
+          if (grouped.feedback.length) {
+            const sorted = grouped.feedback.sort(byDate).slice(0, MAX_FEEDBACK)
+            const lines = sorted.map(r => `- **${r.name}** (${r.updated_at.slice(0, 10)}): ${r.body.split('\n')[0].slice(0, PREVIEW)}`)
+            const extra = grouped.feedback.length - MAX_FEEDBACK
+            sections.push(`## Feedback (${grouped.feedback.length} total, ${sorted.length} shown)\n${lines.join('\n')}${extra > 0 ? `\n_+${extra} more — use search_memories(type:"feedback")_` : ''}`)
+          }
+          if (grouped.project.length) {
+            const sorted = grouped.project.sort(byDate).slice(0, MAX_PROJECTS)
+            const lines = sorted.map(r => `- **${r.name}** (${r.updated_at.slice(0, 10)}): ${r.body.split('\n')[0].slice(0, PREVIEW)}`)
+            const extra = grouped.project.length - MAX_PROJECTS
+            sections.push(`## Projects (${grouped.project.length} total, ${sorted.length} shown)\n${lines.join('\n')}${extra > 0 ? `\n_+${extra} more — use list_memories(type:"project")_` : ''}`)
+          }
 
-        // Projects — name + one-line status only
-        if (grouped.project.length) {
-          const sorted = grouped.project.sort((a, b) => b.updated_at.localeCompare(a.updated_at)).slice(0, MAX_PROJECTS)
-          const lines = sorted.map(r => `- **${r.name}** (${r.updated_at.slice(0, 10)}): ${r.body.split('\n')[0].slice(0, BODY_PREVIEW)}`)
-          const remaining = grouped.project.length - MAX_PROJECTS
-          sections.push(`## Active Projects (${grouped.project.length} total, showing ${sorted.length})\n${lines.join('\n')}${remaining > 0 ? `\n_…${remaining} more — use list_memories(type: "project")_` : ''}`)
+        } else {
+          // full — complete body for soul+user, 400-char preview for feedback+project
+          const PREVIEW = 400
+          if (grouped.user.length) sections.push(`## User\n${grouped.user.map(r => r.body).join('\n')}`)
+          if (grouped.soul.length) sections.push(`## Soul\n${grouped.soul.map(r => `**${r.name}**\n${r.body}`).join('\n\n---\n\n')}`)
+          if (grouped.feedback.length) {
+            const lines = grouped.feedback.sort(byDate).map(r =>
+              `- **${r.name}** (${r.updated_at.slice(0, 10)}): ${r.body.slice(0, PREVIEW).replace(/\n/g, ' ')}${r.body.length > PREVIEW ? '…' : ''}`
+            )
+            sections.push(`## Feedback (${grouped.feedback.length})\n${lines.join('\n')}`)
+          }
+          if (grouped.project.length) {
+            const lines = grouped.project.sort(byDate).map(r =>
+              `- **${r.name}** (${r.updated_at.slice(0, 10)}): ${r.body.slice(0, PREVIEW).replace(/\n/g, ' ')}${r.body.length > PREVIEW ? '…' : ''}`
+            )
+            sections.push(`## Projects (${grouped.project.length})\n${lines.join('\n')}`)
+          }
         }
       } catch (e) {
-        errors.push(`memories: ${String(e)}`)
+        sections.push(`_Error loading memories: ${String(e)}_`)
       }
 
-      // Recent chatlogs — short excerpts only
+      // Recent chatlogs — always compact regardless of mode
       try {
         const table = await getTable('chatlogs')
         const cutoff = new Date(Date.now() - days * 86400000).toISOString().slice(0, 10)
@@ -69,16 +95,16 @@ export function registerLoadContextTool(server: McpServer) {
           date: string; rel_path: string; text: string
         }>
         rows.sort((a, b) => b.date.localeCompare(a.date))
-        const sliced = rows.slice(0, MAX_CHATLOGS)
+        const limit = mode === 'minimal' ? 3 : mode === 'compact' ? 5 : 10
+        const preview = mode === 'full' ? 400 : 200
+        const sliced = rows.slice(0, limit)
         if (sliced.length) {
-          const lines = sliced.map(r => `- **${r.date}** ${r.rel_path}: ${r.text.slice(0, CHATLOG_PREVIEW).replace(/\n/g, ' ')}…`)
-          sections.push(`## Recent Chatlogs (last ${days}d)\n${lines.join('\n')}`)
+          const lines = sliced.map(r => `- **${r.date}** ${r.rel_path}: ${r.text.slice(0, preview).replace(/\n/g, ' ')}…`)
+          sections.push(`## Recent Chatlogs (last ${days}d, ${sliced.length} entries)\n${lines.join('\n')}`)
         }
       } catch {
-        sections.push(`## Recent Chatlogs\n_Not indexed yet — run pnpm index:chatlogs_`)
+        sections.push(`## Recent Chatlogs\n_Not indexed — run pnpm index:chatlogs_`)
       }
-
-      if (errors.length) sections.push(`## Errors\n${errors.map(e => `- ${e}`).join('\n')}`)
 
       return { content: [{ type: 'text', text: sections.join('\n\n') || 'No context found.' }] }
     }

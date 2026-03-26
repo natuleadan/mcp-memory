@@ -10,20 +10,21 @@
   <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-blue.svg?style=for-the-badge" alt="MIT License" /></a>
   <img src="https://img.shields.io/badge/LanceDB-local-green?style=for-the-badge" alt="LanceDB" />
   <img src="https://img.shields.io/badge/Ollama-nomic--embed-purple?style=for-the-badge" alt="Ollama" />
-  <img src="https://img.shields.io/badge/Status-In%20Development-orange?style=for-the-badge" alt="In Development" />
+  <img src="https://img.shields.io/badge/Tools-20-blue?style=for-the-badge" alt="20 Tools" />
 </p>
 
 > ⚠️ **Active Development** — APIs and tools may change without prior notice. Use tagged releases (`vX.Y.Z`) for stability.
 
 ---
 
-Local MCP server compatible with any stdio-based AI client. Provides persistent structured memory, semantic search and reindexing using local embeddings and LanceDB.
+Local MCP server compatible with any stdio-based AI client. Provides persistent structured memory, semantic search, version tracking and reindexing using local embeddings and LanceDB.
 
 ## Stack
 
 - **Vector DB**: [LanceDB](https://lancedb.github.io/lancedb/) (local, stored in `data/`)
 - **Embeddings**: `nomic-embed-text` via [Ollama](https://ollama.com)
 - **Protocol**: MCP over stdio
+- **Runtime**: Node.js + TypeScript (`tsx`)
 
 ---
 
@@ -32,7 +33,8 @@ Local MCP server compatible with any stdio-based AI client. Provides persistent 
 Two memory layers:
 
 ### 1. Structured memory (`memories` table)
-CRUD entries with semantic embeddings. Persists across sessions.
+
+CRUD entries with semantic embeddings and automatic version tracking. Persists across sessions.
 
 | Type | Purpose |
 |------|---------|
@@ -44,35 +46,60 @@ CRUD entries with semantic embeddings. Persists across sessions.
 | `pending` | Open tasks and follow-ups |
 
 ### 2. Episodic memory (indexed chatlogs)
+
 Conversation history indexed by date. Queryable via `search_memory`.
+
+### 3. Version history (`memory_versions` table)
+
+Automatic snapshot saved every time `upsert_memory` modifies an existing entry. Query with `memory_versions(name)`.
 
 ---
 
-## Tools
+## Tools (20 total)
 
-### Structured memory (CRUD)
+### Session start
 
 | Tool | Description |
 |------|-------------|
-| `upsert_memory` | ⭐ Create or update by name — no UUID needed |
+| `load_context` | Bootstrap session: soul + user + feedback + projects + chatlogs. Three modes: `minimal` (~200 tokens) · `compact` (default, ~1-2k tokens) · `full` |
+| `get_context_for_task` | Smart loader: given a task description, fetches only the most relevant memories semantically |
+
+### Fast retrieval (no embedding — O(1))
+
+| Tool | Description |
+|------|-------------|
+| `get_memory_by_name` | Direct lookup by exact name (e.g. `"leo_profile"`) |
+| `get_memories_by_tag` | Filter all memories by tag (e.g. `"critical"`, `"commits"`) |
+| `get_recent_chatlogs` | Recent chatlog entries in chronological order |
+
+### Semantic search
+
+| Tool | Description |
+|------|-------------|
+| `search_memories` | Full semantic search — returns complete body |
+| `search_memories_lite` | Semantic search — returns 200-char excerpts only (saves tokens) |
+| `batch_search_memories` | Multiple queries (newline-separated) in parallel |
+| `search_codebase` | Search source code (`.ts .tsx .js .jsx`) |
+| `search_docs` | Search documentation (`.md .sql .json`) |
+| `search_memory` | Search conversation history / chatlogs |
+
+### Memory CRUD
+
+| Tool | Description |
+|------|-------------|
+| `upsert_memory` | ⭐ Create or update by name — no UUID needed. Auto-saves version snapshot on update |
 | `save_memory` | Create new entry with automatic embedding |
 | `update_memory` | Update by UUID (re-embeds automatically) |
 | `delete_memory` | Delete by UUID |
-| `list_memories` | List all, optional type filter |
-| `search_memories` | Semantic search in `memories` table |
+| `list_memories` | List all memories, optional type filter |
 
-### Contextual search (read-only)
-
-| Tool | Description |
-|------|-------------|
-| `search_codebase` | Search source code (`.ts .tsx .js .jsx`) |
-| `search_docs` | Search documentation (`.md .sql .json`) |
-| `search_memory` | Search conversation history/chatlogs |
-
-### Maintenance
+### Inspection & maintenance
 
 | Tool | Description |
 |------|-------------|
+| `get_memory_stats` | Total count, breakdown by type, oldest/newest, avg body length |
+| `memory_versions` | Version history of a memory by name |
+| `purge_old_memories` | Clean stale entries by type + age. Has `dry_run` mode (default: `true`) |
 | `reindex` | Trigger reindexing: `code \| docs \| chatlogs \| all` |
 
 ---
@@ -80,19 +107,27 @@ Conversation history indexed by date. Queryable via `search_memory`.
 ## Agent usage protocol
 
 ```
-START of conversation:
-  1. search_memories("relevant topic")
-  2. list_memories("pending") — review open items
+SESSION START:
+  1. get_context_for_task("what I'm about to do")  ← smart, minimal tokens
+  OR
+  1. load_context(mode: "compact")                 ← full session bootstrap
 
-WHEN learning something new:
-  → upsert_memory(type, name, body, tags)
+DURING WORK — when you learn something new:
+  → upsert_memory(type, name, body, tags)          ← auto-versions on update
 
-AFTER completing a task:
+AFTER COMPLETING A TASK:
   → upsert_memory() if something is worth persisting
-  → Append block to _chatlogs/YYYY-MM/MM.DD.md (Obsidian format)
+  → Append block to _chatlogs/YYYY-MM/MM.DD.md
 
-WHEN completing a pending item:
-  → update_memory(id) or delete_memory(id)
+FETCHING A KNOWN MEMORY:
+  → get_memory_by_name("exact_name")              ← O(1), no embedding cost
+
+FETCHING CRITICAL RULES:
+  → get_memories_by_tag("critical")
+
+HOUSEKEEPING (monthly):
+  → get_memory_stats()                            ← check totals
+  → purge_old_memories(days_ago: 60, type: "project", dry_run: true)
 ```
 
 ---

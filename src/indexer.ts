@@ -27,6 +27,8 @@ const IGNORE_DIRS = new Set([
 const CODE_EXTS = new Set(['.ts', '.tsx', '.js', '.jsx', '.mjs', '.mts', '.sh'])
 // Table `docs`: documentation, schemas, configuration
 const DOC_EXTS = new Set(['.md', '.sql', '.json', '.env.example', '.yml', '.yaml'])
+// Table `chatlogs`: conversation history
+const CHATLOG_EXTS = new Set(['.md'])
 
 type Chunk = {
   id: string
@@ -200,7 +202,8 @@ async function indexTable(
 async function main() {
   await ensureOllama()
   const SOURCE_DIR = process.env.FULLSTACK_DIR!
-  const MODE = process.argv[2] ?? 'all' // 'code' | 'docs' | 'all'
+  const CHATLOGS_DIR = process.env.CHATLOG_DIR!
+  const MODE = process.argv[2] ?? 'all' // 'code' | 'docs' | 'chatlogs' | 'all'
 
   const db = await lancedb.connect(LANCEDB_DIR)
 
@@ -209,6 +212,9 @@ async function main() {
   }
   if (MODE === 'docs' || MODE === 'all') {
     await indexTable(db, 'docs', SOURCE_DIR, DOC_EXTS, false)
+  }
+  if (MODE === 'chatlogs' || MODE === 'all') {
+    await indexTable(db, 'chatlogs', CHATLOGS_DIR, CHATLOG_EXTS, false)
   }
 }
 

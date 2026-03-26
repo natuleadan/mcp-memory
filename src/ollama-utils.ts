@@ -15,7 +15,7 @@ function isOllamaRunning(): boolean {
 export async function ensureOllama(): Promise<void> {
   if (isOllamaRunning()) return
 
-  console.error('🦙 Ollama no está corriendo — arrancando...')
+  console.error('🦙 Ollama is not running — starting...')
 
   const child = spawn('ollama', ['serve'], {
     detached: true,
@@ -23,14 +23,14 @@ export async function ensureOllama(): Promise<void> {
   })
   child.unref()
 
-  // Esperar hasta 15s a que responda
+  // Wait up to 15s for Ollama to respond
   for (let i = 0; i < 15; i++) {
     await new Promise(r => setTimeout(r, 1000))
     if (isOllamaRunning()) {
-      console.error('✅ Ollama listo')
+      console.error('✅ Ollama ready')
       return
     }
   }
 
-  throw new Error('Ollama no respondió después de 15s. Verifica que esté instalado.')
+  throw new Error('Ollama did not respond after 15s. Make sure it is installed and running.')
 }

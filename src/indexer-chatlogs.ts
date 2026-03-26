@@ -12,7 +12,7 @@ const BATCH_SIZE = 10
 const MAX_CHARS = 1800
 const TABLE_NAME = 'chatlogs'
 
-// Todos los archivos de texto plano que puedan ser chatlogs
+// All plain-text files that may be chatlogs
 const ALLOWED_EXTS = new Set(['.md', '.txt', '.json'])
 
 type Chunk = {
@@ -39,13 +39,13 @@ function collectFiles(dir: string): { path: string; mtime: number }[] {
       }
     }
   } catch {
-    // dir no existe o sin permisos — ignorar
+    // dir does not exist or no permissions — skip
   }
   return files
 }
 
 function extractDate(filePath: string): string {
-  // Intenta extraer fecha del path: 2026-03/03.01.md → 2026-03-01
+  // Try to extract date from path: 2026-03/03.01.md → 2026-03-01
   const parts = filePath.split('/')
   const folder = parts.at(-2) ?? ''
   const file = parts.at(-1)?.replace('.md', '').replace('.txt', '') ?? ''
@@ -88,7 +88,7 @@ async function embed(texts: string[]): Promise<(number[] | null)[]> {
 async function main() {
   await ensureOllama()
 
-  console.log(`📂 Indexando chatlogs: ${CHATLOG_DIR}`)
+  console.log(`📂 Indexing chatlogs: ${CHATLOG_DIR}`)
   const db = await lancedb.connect(LANCEDB_DIR)
 
   let existingChunks = new Map<string, number>()
@@ -97,15 +97,15 @@ async function main() {
     table = await db.openTable(TABLE_NAME)
     const existing = await table.query().select(['id', 'mtime']).toArray()
     existingChunks = new Map(existing.map((r: { id: string; mtime: number }) => [r.id, r.mtime]))
-    console.log(`✅ ${existingChunks.size} chunks ya indexados`)
+    console.log(`✅ ${existingChunks.size} chunks already indexed`)
   } catch {
-    console.log('🆕 Tabla nueva, indexando desde cero...')
+    console.log('🆕 New table, indexing from scratch...')
   }
 
   const files = collectFiles(CHATLOG_DIR)
-  console.log(`📄 ${files.length} archivos encontrados`)
+  console.log(`📄 ${files.length} files found`)
 
-  // Detectar archivos modificados
+  // Detect modified files
   const staleIds: string[] = []
   for (const [id, mtime] of existingChunks) {
     const relPath = id.split('#')[0]
@@ -138,11 +138,11 @@ async function main() {
   }
 
   if (allChunks.length === 0) {
-    console.log('✨ Todo al día, nada nuevo que indexar.')
+    console.log('✨ All up to date, nothing new to index.')
     return
   }
 
-  console.log(`🔢 ${allChunks.length} chunks nuevos a embedear...`)
+  console.log(`🔢 ${allChunks.length} new chunks to embed...`)
   const chunks: Chunk[] = []
   for (let i = 0; i < allChunks.length; i += BATCH_SIZE) {
     const batch = allChunks.slice(i, i + BATCH_SIZE)

@@ -65,10 +65,10 @@ server.tool(
         `### ${r.rel_path}\n\`\`\`\n${r.text}\n\`\`\``
       )
       return {
-        content: [{ type: 'text', text: formatted.join('\n\n---\n\n') || 'Sin resultados.' }],
+        content: [{ type: 'text', text: formatted.join('\n\n---\n\n') || 'No results.' }],
       }
     } catch {
-      return { content: [{ type: 'text', text: 'Codebase no indexado aún. Corre pnpm index:code' }] }
+      return { content: [{ type: 'text', text: 'Codebase not indexed yet. Run pnpm index:code' }] }
     }
   }
 )
@@ -91,10 +91,10 @@ server.tool(
         `### ${r.rel_path}\n${r.text}`
       )
       return {
-        content: [{ type: 'text', text: formatted.join('\n\n---\n\n') || 'Sin resultados.' }],
+        content: [{ type: 'text', text: formatted.join('\n\n---\n\n') || 'No results.' }],
       }
     } catch {
-      return { content: [{ type: 'text', text: 'Docs no indexados aún. Corre pnpm index:docs' }] }
+      return { content: [{ type: 'text', text: 'Docs not indexed yet. Run pnpm index:docs' }] }
     }
   }
 )
@@ -117,10 +117,10 @@ server.tool(
         `### ${r.rel_path} (${r.date})\n${r.text}`
       )
       return {
-        content: [{ type: 'text', text: formatted.join('\n\n---\n\n') || 'Sin resultados.' }],
+        content: [{ type: 'text', text: formatted.join('\n\n---\n\n') || 'No results.' }],
       }
     } catch {
-      return { content: [{ type: 'text', text: 'Chatlogs no indexados aún. Corre pnpm index:chatlogs' }] }
+      return { content: [{ type: 'text', text: 'Chatlogs not indexed yet. Run pnpm index:chatlogs' }] }
     }
   }
 )

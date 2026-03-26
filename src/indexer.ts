@@ -8,7 +8,7 @@ import { ensureOllama } from './ollama-utils.js'
 const ollama = new Ollama({ host: process.env.OLLAMA_HOST ?? 'http://localhost:11434' })
 const LANCEDB_DIR = process.env.LANCEDB_DIR!
 const BATCH_SIZE = 10
-const MAX_CHARS = 1800 // nomic-embed-text soporta ~2048 tokens; 1800 chars es seguro
+const MAX_CHARS = 1800 // nomic-embed-text supports ~2048 tokens; 1800 chars is safe
 
 const IGNORE_DIRS = new Set([
   'node_modules', '.git', '.next', 'dist', 'build', '.turbo',
@@ -105,7 +105,7 @@ async function indexTable(
   allowedExts: Set<string>,
   isCode: boolean,
 ) {
-  console.log(`\n📂 Indexando tabla [${tableName}]: ${sourceDir}`)
+  console.log(`\n📂 Indexing table [${tableName}]: ${sourceDir}`)
 
   let existingChunks = new Map<string, number>()
   let table: Awaited<ReturnType<typeof db.openTable>> | null = null
@@ -113,15 +113,15 @@ async function indexTable(
     table = await db.openTable(tableName)
     const existing = await table.query().select(['id', 'mtime']).toArray()
     existingChunks = new Map(existing.map((r: { id: string; mtime: number }) => [r.id, r.mtime]))
-    console.log(`  ✅ ${existingChunks.size} chunks ya indexados`)
+    console.log(`  ✅ ${existingChunks.size} chunks already indexed`)
   } catch {
-    console.log('  🆕 Tabla nueva, indexando desde cero...')
+    console.log('  🆕 New table, indexing from scratch...')
   }
 
   const files = collectFiles(sourceDir, allowedExts)
-  console.log(`  📄 ${files.length} archivos encontrados`)
+  console.log(`  📄 ${files.length} files found`)
 
-  // Detectar archivos modificados
+  // Detect modified files
   const staleIds: string[] = []
   for (const [id, mtime] of existingChunks) {
     const relPath = id.split('#')[0]
@@ -154,11 +154,11 @@ async function indexTable(
   }
 
   if (allChunks.length === 0) {
-    console.log('  ✨ Todo al día, nada nuevo que indexar.')
+    console.log('  ✨ All up to date, nothing new to index.')
     return
   }
 
-  console.log(`  🔢 ${allChunks.length} chunks nuevos a embedear...`)
+  console.log(`  🔢 ${allChunks.length} new chunks to embed...`)
   const chunks: Chunk[] = []
   for (let i = 0; i < allChunks.length; i += BATCH_SIZE) {
     const batch = allChunks.slice(i, i + BATCH_SIZE)

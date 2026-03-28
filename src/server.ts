@@ -15,6 +15,7 @@ import { registerUpsertMemoryTool } from './tools/upsert-memory.js'
 import { registerReindexTool } from './tools/reindex.js'
 // Optimization tools
 import { registerLoadContextTool } from './tools/load-context.js'
+import { registerLoadSessionContextTool } from './tools/load-session-context.js'
 import { registerGetMemoryByNameTool } from './tools/get-memory-by-name.js'
 import { registerGetRecentChatslogsTool } from './tools/get-recent-chatlogs.js'
 import { registerGetMemoriesByTagTool } from './tools/get-memories-by-tag.js'
@@ -43,6 +44,7 @@ registerUpsertMemoryTool(server)
 registerReindexTool(server)
 // Optimization & context tools
 registerLoadContextTool(server)
+registerLoadSessionContextTool(server)
 registerGetMemoryByNameTool(server)
 registerGetRecentChatslogsTool(server)
 registerGetMemoriesByTagTool(server)
@@ -57,7 +59,7 @@ async function main() {
   const transport = new StdioServerTransport()
   await server.connect(transport)
   console.error(
-    '🧠 mcp-memory server running (21 tools: core CRUD + search + global search + context optimization)'
+    '🧠 mcp-memory server running (22 tools: core CRUD + search + global search + optimized context loaders)'
   )
 }
 

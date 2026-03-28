@@ -7,16 +7,17 @@ export function registerLoadContextTool(server: McpServer) {
     'load_context',
     [
       'Loads critical context at session start. Three modes:',
-      '- minimal: only memory names list (~200 tokens)',
-      '- compact (default): names + 120-char preview (~1-2k tokens)',
+      '- minimal (default): only memory names list (~50 tokens)',
+      '- compact: names + 120-char preview (~1-2k tokens)',
       '- full: complete body for soul+user, previews for feedback+project',
+      'RECOMMENDED: Use minimal by default (0 args needed). Falls back to minimal if any mode fails.',
       'Use get_memory_by_name() or search_memories() to fetch full body of specific entries.',
     ].join(' '),
     {
       mode: z
         .enum(['minimal', 'compact', 'full'])
-        .default('compact')
-        .describe('Output verbosity: minimal | compact (default) | full'),
+        .default('minimal')
+        .describe('Output verbosity: minimal (default — ~50 tokens) | compact (~1-2k) | full'),
       days: z.coerce
         .number()
         .default(7)
@@ -24,6 +25,7 @@ export function registerLoadContextTool(server: McpServer) {
     },
     async ({ mode, days }) => {
       const sections: string[] = []
+      let actualMode = mode
 
       try {
         const table = await getMemoriesTable()
@@ -123,7 +125,44 @@ export function registerLoadContextTool(server: McpServer) {
           }
         }
       } catch (e) {
-        sections.push(`_Error loading memories: ${String(e)}_`)
+        // Fallback to minimal mode if requested mode fails
+        if (actualMode !== 'minimal') {
+          console.error(
+            `⚠️ Failed to load memories in '${actualMode}' mode, falling back to 'minimal'`
+          )
+          actualMode = 'minimal'
+          try {
+            const table = await getMemoriesTable()
+            const rows = (await table
+              .query()
+              .where(
+                `id != '__init__' AND (type = 'soul' OR type = 'user' OR type = 'feedback' OR type = 'project')`
+              )
+              .toArray()) as Array<{ id: string; type: string; name: string; body: string }>
+
+            const grouped: Record<string, typeof rows> = {
+              soul: [],
+              user: [],
+              feedback: [],
+              project: [],
+            }
+            for (const r of rows) {
+              if (grouped[r.type]) grouped[r.type].push(r)
+            }
+
+            const lines: string[] = []
+            for (const [type, entries] of Object.entries(grouped)) {
+              if (entries.length) lines.push(`${type}: ${entries.map((r) => r.name).join(', ')}`)
+            }
+            sections.push(`## Memory Index (Fallback Minimal)\n${lines.join('\n')}`)
+          } catch (fallbackError) {
+            sections.push(
+              `_Error loading memories (fallback also failed): ${String(fallbackError)}_`
+            )
+          }
+        } else {
+          sections.push(`_Error loading memories: ${String(e)}_`)
+        }
       }
 
       // Recent chatlogs — always compact regardless of mode

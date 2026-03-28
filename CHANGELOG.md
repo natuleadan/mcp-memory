@@ -5,6 +5,21 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.3.0](https://github.com/natuleadan/mcp-memory/compare/v1.2.2...v1.3.0) (2026-03-28)
+
+### ✨ Features
+
+* **memory:** add load_session_context optimized context loader ([ed969e6](https://github.com/natuleadan/mcp-memory/commit/ed969e696edaaa979062a7656434283acd77bd5f))
+* **memory:** optimize load_context default to minimal mode ([1f319d7](https://github.com/natuleadan/mcp-memory/commit/1f319d7856130bbf98f284304ee06f5c27fc6e9d))
+
+### 📖 Documentation
+
+* **memory:** update tools count and session start guidance ([f691667](https://github.com/natuleadan/mcp-memory/commit/f6916673d928dde5db2306feb7f23bf98b34f08a))
+
+### 🔧 Chore
+
+* **memory:** register load_session_context tool ([9990719](https://github.com/natuleadan/mcp-memory/commit/99907191cf7bb633f8f0a168994b5171c4c532a2))
+
 ## [1.2.2](https://github.com/natuleadan/mcp-memory/compare/v1.2.1...v1.2.2) (2026-03-26)
 
 ### 🐛 Bug Fixes

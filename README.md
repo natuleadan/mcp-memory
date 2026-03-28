@@ -11,7 +11,7 @@
   <img src="https://img.shields.io/badge/LanceDB-local-green?style=for-the-badge" alt="LanceDB" />
   <img src="https://img.shields.io/badge/Ollama-nomic--embed-purple?style=for-the-badge" alt="Ollama" />
   <img src="https://img.shields.io/badge/Status-In%20Development-orange?style=for-the-badge" alt="In Development" />
-  <img src="https://img.shields.io/badge/Tools-21-blue?style=for-the-badge" alt="21 Tools" />
+  <img src="https://img.shields.io/badge/Tools-22-blue?style=for-the-badge" alt="22 Tools" />
 </p>
 
 > ⚠️ **Active Development** — APIs and tools may change without prior notice. Use tagged releases (`vX.Y.Z`) for stability.
@@ -56,13 +56,14 @@ Automatic snapshot saved every time `upsert_memory` modifies an existing entry. 
 
 ---
 
-## Tools (21 total)
+## Tools (22 total)
 
 ### Session start
 
 | Tool | Description |
 |------|-------------|
-| `load_context` | Bootstrap session: soul + user + feedback + projects + chatlogs. Three modes: `minimal` (~200 tokens) · `compact` (default, ~1-2k tokens) · `full` |
+| `load_session_context` | ⭐ **RECOMMENDED** — Fast session bootstrap (0 args = ~50 tokens). Optional `include_previews=true` for 120-char previews (~1.5k tokens). Auto-fallback to minimal on error |
+| `load_context` | Full session bootstrap: soul + user + feedback + projects + chatlogs. Three modes: `minimal` (default, ~50 tokens) · `compact` (~1-2k tokens) · `full`. Auto-fallback to minimal on error |
 | `get_context_for_task` | Smart loader: given a task description, fetches only the most relevant memories semantically |
 
 ### Fast retrieval (no embedding — O(1))
@@ -109,10 +110,12 @@ Automatic snapshot saved every time `upsert_memory` modifies an existing entry. 
 ## Agent usage protocol
 
 ```
-SESSION START:
-  1. get_context_for_task("what I'm about to do")  ← smart, minimal tokens
+SESSION START (RECOMMENDED):
+  1. load_session_context()                        ← 50 tokens, names only
   OR
-  1. load_context(mode: "compact")                 ← full session bootstrap
+  1. load_session_context(include_previews: true)  ← 1.5k tokens, with 120-char previews
+  OR (advanced)
+  1. get_context_for_task("what I'm about to do")  ← smart, minimal tokens
 
 DURING WORK — when you learn something new:
   → upsert_memory(type, name, body, tags)          ← auto-versions on update

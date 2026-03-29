@@ -5,6 +5,17 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.1.0](https://github.com/natuleadan/mcp-memory/compare/v2.0.0...v2.1.0) (2026-03-29)
+
+### ✨ Features
+
+* **obsidian:** add vault sync, auto-export on startup, crud tools and bi-directional sync ([66ce41e](https://github.com/natuleadan/mcp-memory/commit/66ce41e5e896bbf5fecc888b9d789355f5872e12))
+
+### ♻️ Refactoring
+
+* **config:** rename fullstack_dir to coding_dir and update env example with obsidian vars ([142468d](https://github.com/natuleadan/mcp-memory/commit/142468dbfcdfb48d4f19c3d72d4b53e986f2b99f))
+* **scripts:** move setup.ts from scripts/ to src/ ([0eaf223](https://github.com/natuleadan/mcp-memory/commit/0eaf2230f23677df1097665652c240b61079dc04))
+
 ## [2.0.0](https://github.com/natuleadan/mcp-memory/compare/v1.3.0...v2.0.0) (2026-03-29)
 
 ### 🔥 Upgrade

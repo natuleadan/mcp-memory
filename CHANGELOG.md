@@ -5,6 +5,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.0.0](https://github.com/natuleadan/mcp-memory/compare/v1.3.0...v2.0.0) (2026-03-29)
+
+### 🔥 Upgrade
+
+* **deps:** update @modelcontextprotocol/sdk to 1.28.0 ([ae15dae](https://github.com/natuleadan/mcp-memory/commit/ae15dae8ff195b8a9adcb1b1d08cfa660c6b3c54))
+
 ## [1.3.0](https://github.com/natuleadan/mcp-memory/compare/v1.2.2...v1.3.0) (2026-03-28)
 
 ### ✨ Features

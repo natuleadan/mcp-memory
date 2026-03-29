@@ -201,7 +201,7 @@ async function indexTable(
 
 async function main() {
   await ensureOllama()
-  const SOURCE_DIR = process.env.FULLSTACK_DIR!
+  const SOURCE_DIR = process.env.CODING_DIR!
   const CHATLOGS_DIR = process.env.CHATLOG_DIR!
   const MODE = process.argv[2] ?? 'all' // 'code' | 'docs' | 'chatlogs' | 'all'
 

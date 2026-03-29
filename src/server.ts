@@ -25,6 +25,12 @@ import { registerBatchSearchMemoriesTool } from './tools/batch-search-memories.j
 import { registerMemoryVersionsTool } from './tools/memory-versions.js'
 import { registerGetContextForTaskTool } from './tools/get-context-for-task.js'
 import { registerSearchGlobalTool } from './tools/search-global.js'
+// Obsidian sync tools
+import { registerListObsidianMemoriesTool } from './tools/list-obsidian-memories.js'
+import { registerReadObsidianMemoryTool } from './tools/read-obsidian-memory.js'
+import { registerSyncObsidianMemoriesTool } from './tools/sync-obsidian-memories.js'
+import { registerExportToObsidianTool } from './tools/export-to-obsidian.js'
+import { initObsidian } from './obsidian-init.js'
 
 const server = new McpServer({ name: 'mcp-memory', version: '1.0.0' })
 
@@ -53,13 +59,19 @@ registerPurgeOldMemoriesTool(server)
 registerBatchSearchMemoriesTool(server)
 registerMemoryVersionsTool(server)
 registerGetContextForTaskTool(server)
+// Obsidian sync tools
+registerListObsidianMemoriesTool(server)
+registerReadObsidianMemoryTool(server)
+registerSyncObsidianMemoriesTool(server)
+registerExportToObsidianTool(server)
 
 async function main() {
   await ensureOllama()
+  await initObsidian()
   const transport = new StdioServerTransport()
   await server.connect(transport)
   console.error(
-    '🧠 mcp-memory server running (22 tools: core CRUD + search + global search + optimized context loaders)'
+    '🧠 mcp-memory server running (26 tools: core CRUD + search + global search + optimized context loaders + obsidian sync)'
   )
 }
 

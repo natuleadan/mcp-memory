@@ -5,7 +5,7 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "bootstrap": "tsx scripts/setup.ts",
+    "bootstrap": "tsx src/setup.ts",
     "index:code": "tsx src/indexer.ts code",
     "index:docs": "tsx src/indexer.ts docs",
     "index:chatlogs": "tsx src/indexer-chatlogs.ts",

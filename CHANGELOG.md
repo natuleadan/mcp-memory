@@ -5,6 +5,16 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.2.1](https://github.com/natuleadan/mcp-memory/compare/v2.2.0...v2.2.1) (2026-04-21)
+
+### 🐛 Bug Fixes
+
+* **data_sync:** bidirectional sync with LanceDB API fix and new flags ([fed9c00](https://github.com/natuleadan/mcp-memory/commit/fed9c00ed1f8b8a415d47951f69add330093b3e2))
+
+### 🔧 Chore
+
+* **release:** bump version to 2.2.0 ([212fd4f](https://github.com/natuleadan/mcp-memory/commit/212fd4f5247696673f52b8cc78ed86d1c0120f46))
+
 ## [2.2.0](https://github.com/natuleadan/mcp-memory/compare/v2.1.0...v2.2.0) (2026-04-21)
 
 ### ✨ Features

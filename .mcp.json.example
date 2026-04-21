@@ -1,0 +1,24 @@
+{
+  "mcpServers": {
+    "mcp-memory": {
+      "type": "stdio",
+      "command": "pnpm",
+      "args": ["--dir", "${WORKSPACE_DIR}/mcp-memory", "start"],
+      "env": {},
+      "platforms": {
+        "darwin": {
+          "command": "pnpm",
+          "args": ["--dir", "${WORKSPACE_DIR}/mcp-memory", "start"]
+        },
+        "linux": {
+          "command": "pnpm",
+          "args": ["--dir", "${WORKSPACE_DIR}/mcp-memory", "start"]
+        },
+        "win32": {
+          "command": "pnpm.cmd",
+          "args": ["--dir", "${WORKSPACE_DIR}\\mcp-memory", "start"]
+        }
+      }
+    }
+  }
+}

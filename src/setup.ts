@@ -6,7 +6,7 @@
  * Usage: pnpm bootstrap
  */
 
-import { spawnSync } from 'child_process'
+import { spawnSync, spawn } from 'child_process'
 import { platform, arch } from 'os'
 
 const REQUIRED_MODEL = 'nomic-embed-text'
@@ -25,21 +25,37 @@ function shInherit(cmd: string, args: string[]): boolean {
 }
 
 function isInstalled(bin: string): boolean {
-  const checker = os === 'win32' ? 'where' : 'which'
+  const checker = platform() === 'win32' ? 'where' : 'which'
   return sh(checker, [bin]).ok
 }
 
 function isOllamaRunning(): boolean {
   const result = sh('curl', ['-s', '--max-time', '2', `${OLLAMA_HOST}/api/tags`])
   if (!result.ok) return false
-  try { JSON.parse(result.stdout); return true } catch { return false }
+  try {
+    JSON.parse(result.stdout)
+    return true
+  } catch {
+    return false
+  }
 }
 
-function log(msg: string)  { process.stdout.write(`\n${msg}\n`) }
-function ok(msg: string)   { process.stdout.write(`✅ ${msg}\n`) }
-function warn(msg: string) { process.stdout.write(`⚠️  ${msg}\n`) }
-function fail(msg: string): never { process.stderr.write(`❌ ${msg}\n`); process.exit(1) }
-function sleep(ms: number) { spawnSync('node', ['-e', `setTimeout(()=>{},${ms})`]) }
+function log(msg: string) {
+  process.stdout.write(`\n${msg}\n`)
+}
+function ok(msg: string) {
+  process.stdout.write(`✅ ${msg}\n`)
+}
+function warn(msg: string) {
+  process.stdout.write(`⚠️  ${msg}\n`)
+}
+function fail(msg: string): never {
+  process.stderr.write(`❌ ${msg}\n`)
+  process.exit(1)
+}
+function sleep(ms: number) {
+  spawnSync('node', ['-e', `setTimeout(()=>{},${ms})`])
+}
 
 // ─── OS Detection ───────────────────────────────────────────────────────────
 
@@ -57,7 +73,10 @@ function installMac() {
   } else {
     log('⬇️  Installing Ollama (install.sh)...')
     // curl + sh — hardcoded commands, no user input
-    const curl = spawnSync('curl', ['-fsSL', 'https://ollama.com/install.sh'], { encoding: 'utf8', stdio: 'pipe' })
+    const curl = spawnSync('curl', ['-fsSL', 'https://ollama.com/install.sh'], {
+      encoding: 'utf8',
+      stdio: 'pipe',
+    })
     if (curl.status !== 0) fail('Could not download the Ollama installer')
     const install = spawnSync('sh', ['-c', curl.stdout], { stdio: 'inherit' })
     if (install.status !== 0) fail('Ollama installer failed')
@@ -66,7 +85,10 @@ function installMac() {
 
 function installLinux() {
   log('⬇️  Installing Ollama for Linux...')
-  const curl = spawnSync('curl', ['-fsSL', 'https://ollama.com/install.sh'], { encoding: 'utf8', stdio: 'pipe' })
+  const curl = spawnSync('curl', ['-fsSL', 'https://ollama.com/install.sh'], {
+    encoding: 'utf8',
+    stdio: 'pipe',
+  })
   if (curl.status !== 0) fail('Could not download the Ollama installer')
   const install = spawnSync('sh', ['-c', curl.stdout], { stdio: 'inherit' })
   if (install.status !== 0) fail('Ollama installer failed')
@@ -76,7 +98,9 @@ function installWindows() {
   log('⬇️  Installing Ollama for Windows (winget)...')
   const check = sh('winget', ['--version'])
   if (!check.ok) {
-    warn('winget is not available. Download the installer manually from:\n  https://ollama.com/download/windows\nThen run: pnpm bootstrap')
+    warn(
+      'winget is not available. Download the installer manually from:\n  https://ollama.com/download/windows\nThen run: pnpm bootstrap'
+    )
     process.exit(1)
   }
   if (!shInherit('winget', ['install', '-e', '--id', 'Ollama.Ollama'])) {
@@ -87,12 +111,13 @@ function installWindows() {
 if (isInstalled('ollama')) {
   ok('Ollama is already installed')
 } else {
-  if (os === 'darwin')      installMac()
-  else if (os === 'linux')  installLinux()
-  else if (os === 'win32')  installWindows()
+  if (os === 'darwin') installMac()
+  else if (os === 'linux') installLinux()
+  else if (os === 'win32') installWindows()
   else fail(`Unsupported OS: ${os}. Install manually from https://ollama.com/download`)
 
-  if (!isInstalled('ollama')) fail('Installation failed. Install manually from https://ollama.com/download')
+  if (!isInstalled('ollama'))
+    fail('Installation failed. Install manually from https://ollama.com/download')
   ok('Ollama installed')
 }
 
@@ -100,12 +125,15 @@ if (isInstalled('ollama')) {
 
 if (!isOllamaRunning()) {
   log('🦙 Starting Ollama in the background...')
-  spawnSync('ollama', ['serve'], { detached: true, stdio: 'ignore' })
+  spawn('ollama', ['serve'], { detached: true, stdio: 'ignore' })
 
   let ready = false
   for (let i = 0; i < 15; i++) {
     sleep(1000)
-    if (isOllamaRunning()) { ready = true; break }
+    if (isOllamaRunning()) {
+      ready = true
+      break
+    }
   }
 
   if (ready) ok('Ollama running at ' + OLLAMA_HOST)
@@ -130,4 +158,6 @@ if (list.stdout.includes(REQUIRED_MODEL)) {
 
 // ─── Done ─────────────────────────────────────────────────────────────────────
 
-log('🎉 Bootstrap complete.\n   pnpm start  → start the MCP server\n   pnpm index  → index the codebase')
+log(
+  '🎉 Bootstrap complete.\n   pnpm start  → start the MCP server\n   pnpm index  → index the codebase'
+)

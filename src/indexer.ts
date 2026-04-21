@@ -8,7 +8,7 @@ import { ensureOllama } from './ollama-utils.js'
 const ollama = new Ollama({ host: process.env.OLLAMA_HOST ?? 'http://localhost:11434' })
 const LANCEDB_DIR = process.env.LANCEDB_DIR!
 const BATCH_SIZE = 10
-const MAX_CHARS = 1800 // nomic-embed-text supports ~2048 tokens; 1800 chars is safe
+const MAX_CHARS = 1800
 
 const IGNORE_DIRS = new Set([
   'node_modules',
@@ -23,11 +23,8 @@ const IGNORE_DIRS = new Set([
   '.pnpm-store',
 ])
 
-// Table `codebase`: logic and implementations
 const CODE_EXTS = new Set(['.ts', '.tsx', '.js', '.jsx', '.mjs', '.mts', '.sh'])
-// Table `docs`: documentation, schemas, configuration
 const DOC_EXTS = new Set(['.md', '.sql', '.json', '.env.example', '.yml', '.yaml'])
-// Table `chatlogs`: conversation history
 const CHATLOG_EXTS = new Set(['.md'])
 
 type Chunk = {
@@ -38,6 +35,14 @@ type Chunk = {
   text: string
   mtime: number
   vector: number[]
+}
+
+function log(msg: string) {
+  console.log(`  ${msg}`)
+}
+
+function section(msg: string) {
+  console.log(`\n  ${msg}`)
 }
 
 function collectFiles(dir: string, allowedExts: Set<string>): { path: string; mtime: number }[] {
@@ -119,7 +124,7 @@ async function indexTable(
   allowedExts: Set<string>,
   isCode: boolean
 ) {
-  console.log(`\n📂 Indexing table [${tableName}]: ${sourceDir}`)
+  section(`${tableName}`)
 
   let existingChunks = new Map<string, number>()
   let table: Awaited<ReturnType<typeof db.openTable>> | null = null
@@ -127,15 +132,14 @@ async function indexTable(
     table = await db.openTable(tableName)
     const existing = await table.query().select(['id', 'mtime']).toArray()
     existingChunks = new Map(existing.map((r: { id: string; mtime: number }) => [r.id, r.mtime]))
-    console.log(`  ✅ ${existingChunks.size} chunks already indexed`)
+    log(`${existingChunks.size} chunks indexed`)
   } catch {
-    console.log('  🆕 New table, indexing from scratch...')
+    log(`Creating new table...`)
   }
 
   const files = collectFiles(sourceDir, allowedExts)
-  console.log(`  📄 ${files.length} files found`)
+  log(`${files.length} files found`)
 
-  // Detect modified files
   const staleIds: string[] = []
   for (const [id, mtime] of existingChunks) {
     const relPath = id.split('#')[0]
@@ -143,7 +147,7 @@ async function indexTable(
     if (!fileInfo || fileInfo.mtime > mtime) staleIds.push(id)
   }
   if (staleIds.length > 0 && table) {
-    console.log(`  🗑️  Removing ${staleIds.length} stale chunks from modified files...`)
+    log(`Removing ${staleIds.length} stale chunks...`)
     const escaped = staleIds.map((id) => `'${id.replace(/'/g, "''")}'`).join(', ')
     await table.delete(`id IN (${escaped})`)
     for (const id of staleIds) existingChunks.delete(id)
@@ -172,11 +176,11 @@ async function indexTable(
   }
 
   if (allChunks.length === 0) {
-    console.log('  ✨ All up to date, nothing new to index.')
+    log(`All up to date`)
     return
   }
 
-  console.log(`  🔢 ${allChunks.length} new chunks to embed...`)
+  log(`${allChunks.length} chunks to embed...`)
   const chunks: Chunk[] = []
   for (let i = 0; i < allChunks.length; i += BATCH_SIZE) {
     const batch = allChunks.slice(i, i + BATCH_SIZE)
@@ -185,9 +189,7 @@ async function indexTable(
       if (vectors[j] !== null) chunks.push({ ...batch[j], vector: vectors[j]! })
     }
     const done = Math.min(i + BATCH_SIZE, allChunks.length)
-    process.stdout.write(
-      `\r  ${done}/${allChunks.length} chunks (${Math.round((done / allChunks.length) * 100)}%)`
-    )
+    process.stdout.write(`\r  ${done}/${allChunks.length} chunks (${Math.round((done / allChunks.length) * 100)}%)`)
   }
   console.log()
 
@@ -196,16 +198,18 @@ async function indexTable(
   } else {
     await db.createTable(tableName, chunks)
   }
-  console.log(`  ✅ ${chunks.length} chunks indexados en [${tableName}]`)
+  log(`${chunks.length} chunks indexed`)
 }
 
 async function main() {
   await ensureOllama()
   const SOURCE_DIR = process.env.CODING_DIR!
   const CHATLOGS_DIR = process.env.CHATLOG_DIR!
-  const MODE = process.argv[2] ?? 'all' // 'code' | 'docs' | 'chatlogs' | 'all'
+  const MODE = process.argv[2] ?? 'all'
 
   const db = await lancedb.connect(LANCEDB_DIR)
+
+  section('Indexing')
 
   if (MODE === 'code' || MODE === 'all') {
     await indexTable(db, 'codebase', SOURCE_DIR, CODE_EXTS, true)

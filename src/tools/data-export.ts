@@ -8,7 +8,7 @@ export function registerDataExportTool(server: McpServer) {
     'data_export',
     'Export all memories from the vector DB to markdown files.',
     {
-      type: memoryTypeSchema.optional().describe('Export only this type (omit for all)'),
+      type: z.string().optional().describe('Export only this type (omit for all)'),
       overwrite: z.boolean().default(true).describe('Overwrite existing MD files'),
     },
     async ({ type, overwrite }) => {

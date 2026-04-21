@@ -11,7 +11,7 @@
   <img src="https://img.shields.io/badge/LanceDB-local-green?style=for-the-badge" alt="LanceDB" />
   <img src="https://img.shields.io/badge/Ollama-nomic--embed-purple?style=for-the-badge" alt="Ollama" />
   <img src="https://img.shields.io/badge/Status-In%20Development-orange?style=for-the-badge" alt="In Development" />
-  <img src="https://img.shields.io/badge/Tools-22-blue?style=for-the-badge" alt="22 Tools" />
+  <img src="https://img.shields.io/badge/Tools-14-blue?style=for-the-badge" alt="14 Tools" />
 </p>
 
 > ⚠️ **Active Development** — APIs and tools may change without prior notice. Use tagged releases (`vX.Y.Z`) for stability.
@@ -22,20 +22,39 @@ Local MCP server compatible with any stdio-based AI client. Provides persistent 
 
 ## Stack
 
-- **Vector DB**: [LanceDB](https://lancedb.github.io/lancedb/) (local, stored in `data/`)
+- **Vector DB**: [LanceDB](https://lancedb.github.io/lancedb/) (local, stored in `./vectorial/`)
 - **Embeddings**: `nomic-embed-text` via [Ollama](https://ollama.com)
 - **Protocol**: MCP over stdio
 - **Runtime**: Node.js + TypeScript (`tsx`)
 
 ---
 
-## Memory system
+## Architecture
 
-Two memory layers:
+```
+src/
+├── types/      # Zod schemas + TypeScript types
+├── functions/  # Business logic (pure functions)
+└── tools/      # Tool registration (glue code)
+```
 
-### 1. Structured memory (`memories` table)
+All tools use the `data_*` prefix for a unified API.
 
-CRUD entries with semantic embeddings and automatic version tracking. Persists across sessions.
+---
+
+## Memory System
+
+### 1. Structured Memory (`memories` table)
+
+CRUD entries with **semantic embeddings**, FTS indexing, automatic version tracking, and priority weights (1-10). Persists across sessions.
+
+Each memory has:
+- **Embedding** (`embeddings`): Semantic embedding of the full body text (768-dim via nomic-embed-text)
+- **Full-text search**: BM25 index on body for keyword-based search
+- **Weight** (1-10): Prioritizes critical memories in search results
+  - Weight 8-10: Full body returned in search results
+  - Weight 5-7: Full body or excerpt depending on mode
+  - Weight 1-4: Excerpt only
 
 | Type | Purpose |
 |------|---------|
@@ -46,104 +65,107 @@ CRUD entries with semantic embeddings and automatic version tracking. Persists a
 | `reference` | Pointers to external systems, tools, docs |
 | `pending` | Open tasks and follow-ups |
 
-### 2. Episodic memory (indexed chatlogs)
+### 2. Indexed Sources (4 tables)
 
-Conversation history indexed by date. Queryable via `search_memory`.
+| Table | Source | Description |
+|-------|--------|-------------|
+| `memories` | `./memories/` | Structured entries with types |
+| `codebase` | `./coding/` | Source code (.ts, .tsx, .js, .jsx) |
+| `docs` | `./coding/` | Documentation (.md, .sql, .json) |
+| `chatlogs` | `./chatlogs/` | Conversation history |
 
-### 3. Version history (`memory_versions` table)
+Default directories are relative to the project root. Configure via environment variables or use defaults.
 
-Automatic snapshot saved every time `upsert_memory` modifies an existing entry. Query with `memory_versions(name)`.
+### Default Paths
 
----
+If no `.env` is configured, the following defaults are used:
+- `vectorial/` — LanceDB storage
+- `memories/` — Markdown memory vault
+- `coding/` — Code to index (you need to place your project here or configure `CODING_DIR`)
+- `chatlogs/` — Conversation history
 
-## Tools (22 total)
+### 3. Version History (`memory_versions` table)
 
-### Session start
-
-| Tool | Description |
-|------|-------------|
-| `load_session_context` | ⭐ **RECOMMENDED** — Fast session bootstrap (0 args = ~50 tokens). Optional `include_previews=true` for 120-char previews (~1.5k tokens). Auto-fallback to minimal on error |
-| `load_context` | Full session bootstrap: soul + user + feedback + projects + chatlogs. Three modes: `minimal` (default, ~50 tokens) · `compact` (~1-2k tokens) · `full`. Auto-fallback to minimal on error |
-| `get_context_for_task` | Smart loader: given a task description, fetches only the most relevant memories semantically |
-
-### Fast retrieval (no embedding — O(1))
-
-| Tool | Description |
-|------|-------------|
-| `get_memory_by_name` | Direct lookup by exact name (e.g. `"leo_profile"`) |
-| `get_memories_by_tag` | Filter all memories by tag (e.g. `"critical"`, `"commits"`) |
-| `get_recent_chatlogs` | Recent chatlog entries in chronological order |
-
-### Semantic search
-
-| Tool | Description |
-|------|-------------|
-| `search_global` | ⭐ Unified search across all 4 layers (memories, codebase, docs, chatlogs) in parallel. Compact mode (~2-3k tokens) returns excerpts + location |
-| `search_memories` | Full semantic search — returns complete body |
-| `search_memories_lite` | Semantic search — returns 200-char excerpts only (saves tokens) |
-| `batch_search_memories` | Multiple queries (newline-separated) in parallel |
-| `search_codebase` | Search source code (`.ts .tsx .js .jsx`) |
-| `search_docs` | Search documentation (`.md .sql .json`) |
-| `search_memory` | Search conversation history / chatlogs |
-
-### Memory CRUD
-
-| Tool | Description |
-|------|-------------|
-| `upsert_memory` | ⭐ Create or update by name — no UUID needed. Auto-saves version snapshot on update |
-| `save_memory` | Create new entry with automatic embedding |
-| `update_memory` | Update by UUID (re-embeds automatically) |
-| `delete_memory` | Delete by UUID |
-| `list_memories` | List all memories, optional type filter |
-
-### Inspection & maintenance
-
-| Tool | Description |
-|------|-------------|
-| `get_memory_stats` | Total count, breakdown by type, oldest/newest, avg body length |
-| `memory_versions` | Version history of a memory by name |
-| `purge_old_memories` | Clean stale entries by type + age. Has `dry_run` mode (default: `true`) |
-| `reindex` | Trigger reindexing: `code \| docs \| chatlogs \| all` |
+Automatic snapshot saved every time a memory is updated. Query with `data_versions(name)`.
 
 ---
 
-## Agent usage protocol
+## Unified API (14 tools)
+
+All tools use the `data_*` prefix for consistency.
+
+### Search
+
+| Tool | Description |
+|------|-------------|
+| `data_search` | ⭐ Unified search. Use `source` param: `memories`, `codebase`, `docs`, `chatlogs`, or `all` for global search across all 4 sources. Supports `mode`: `critical`, `condensed`, `full`, `lite` |
+
+### CRUD
+
+| Tool | Description |
+|------|-------------|
+| `data_create` | Create new memory with auto-embedding. Params: `type`, `name`, `body`, `tags`, `weight` |
+| `data_update` | Update memory by ID. Auto re-embeds body. Params: `id`, `body`, `tags`, `weight`, `name` |
+| `data_delete` | Delete memory by ID. Params: `id` |
+| `data_list` | List memories. Params: `type` (optional), `tag` (optional filter) |
+| `data_count` | Count memories. Params: `type` (optional) |
+| `data_get` | Get memory by exact name. Params: `name` |
+
+### Context
+
+| Tool | Description |
+|------|-------------|
+| `data_context` | ⭐ **RECOMMENDED** Session bootstrap. Params: `mode` (`minimal`/`compact`/`full`) OR `task` for smart context loading |
+| `data_recent` | Recent memories by date. Params: `days`, `limit` |
+| `data_stats` | Statistics: total count, breakdown by type, oldest/newest, avg body length |
+| `data_versions` | Version history of a memory by name. Params: `name` |
+
+### Files
+
+| Tool | Description |
+|------|-------------|
+| `data_files` | List markdown files in vault. Params: `type` (optional) |
+| `data_sync` | Sync vault files to vector DB. Params: `type`, `dry_run`, `import_missing` |
+| `data_export` | Export memories to markdown files. Params: `type`, `overwrite` |
+
+---
+
+## Agent Usage Protocol
 
 ```
 SESSION START (RECOMMENDED):
-  1. load_session_context()                        ← 50 tokens, names only
+  1. data_context()                           ← minimal mode, ~50 tokens
   OR
-  1. load_session_context(include_previews: true)  ← 1.5k tokens, with 120-char previews
-  OR (advanced)
-  1. get_context_for_task("what I'm about to do")  ← smart, minimal tokens
+  1. data_context(mode: "compact")            ← ~1.5k tokens with previews
+  OR (smart)
+  1. data_context(task: "what I'm doing")     ← semantic smart loading
 
 DURING WORK — when you learn something new:
-  → upsert_memory(type, name, body, tags)          ← auto-versions on update
-
-AFTER COMPLETING A TASK:
-  → upsert_memory() if something is worth persisting
-  → Append block to _chatlogs/YYYY-MM/MM.DD.md
+  → data_create(type, name, body, tags, weight)
 
 FETCHING A KNOWN MEMORY:
-  → get_memory_by_name("exact_name")              ← O(1), no embedding cost
+  → data_get(name: "exact_name")              ← O(1), no embedding cost
 
 FETCHING CRITICAL RULES:
-  → get_memories_by_tag("critical")
+  → data_list(tag: "CRITICAL")
 
-HOUSEKEEPING (monthly):
-  → get_memory_stats()                            ← check totals
-  → purge_old_memories(days_ago: 60, type: "project", dry_run: true)
+SEARCHING:
+  → data_search(source: "memories", query: "...")
+  → data_search(source: "all", query: "...")  ← global search across all sources
+
+HOUSEKEEPING:
+  → data_stats()                              ← check totals
+  → data_versions(name: "memory_name")        ← view history
 ```
 
 ---
 
 ## Setup
 
-See [INSTALL.md](./INSTALL.md) for full setup instructions including Ollama, LanceDB and client configuration.
-
 ```bash
 cp .env.example .env   # fill in your paths
 pnpm install
+pnpm test              # diagnostic: verify all connections and counts
 pnpm index:all         # initial indexing
 pnpm start             # start MCP server
 ```
@@ -153,10 +175,10 @@ pnpm start             # start MCP server
 ## Indexing
 
 ```bash
-pnpm index:all        # code + docs + chatlogs
-pnpm index:code       # source code only
-pnpm index:docs       # documentation only
-pnpm index:chatlogs   # conversation history only
+pnpm index:all           # code + docs + chatlogs
+pnpm index:code          # source code only
+pnpm index:docs          # documentation only
+pnpm index:chatlogs      # conversation history only
 ```
 
 Indexers are incremental — only new or modified files are processed.
@@ -164,20 +186,22 @@ Indexers are incremental — only new or modified files are processed.
 To reindex from scratch:
 
 ```bash
-rm -rf data/
+rm -rf ./vectorial/
 pnpm index:all
 ```
 
 ---
 
-## Environment variables
+## Environment Variables
 
 | Variable | Description |
 |----------|-------------|
 | `OLLAMA_HOST` | Ollama server URL (default: `http://localhost:11434`) |
-| `FULLSTACK_DIR` | Absolute path to the project repo to index |
-| `CHATLOG_DIR` | Absolute path to the chatlogs folder |
-| `LANCEDB_DIR` | Absolute path to store LanceDB indexes (default: `./data`) |
+| `CODING_DIR` | Path to code repository to index (default: `../coding`) |
+| `CHATLOG_DIR` | Path to chatlogs folder (default: `./chatlogs`) |
+| `LANCEDB_DIR` | Path to LanceDB storage (default: `./vectorial`) |
+| `MEMORIES_DIR` | Path to memories vault (default: `./memories`) |
+| `MEMORIES_WRITE_ENABLED` | Enable writing to vault (default: `true`) |
 
 ---
 

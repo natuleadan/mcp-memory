@@ -5,6 +5,27 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.2.0](https://github.com/natuleadan/mcp-memory/compare/v2.1.0...v2.2.0) (2026-04-21)
+
+### ✨ Features
+
+* **functions:** add business logic layer for CRUD, search, and admin ([8766898](https://github.com/natuleadan/mcp-memory/commit/8766898b196115dbb043a993d32ba91c4699b94b))
+* **tools:** add 14 unified data_* MCP tools ([149ed38](https://github.com/natuleadan/mcp-memory/commit/149ed38854263c2155d401f7a60fcf0f272ebfc5))
+* **types:** add TypeScript schemas for memories, search, and data sources ([ef49e4b](https://github.com/natuleadan/mcp-memory/commit/ef49e4b614bf3ce7babb783e145546d7498a375c))
+
+### 🐛 Bug Fixes
+
+* **config:** remove duplicate commitlint.config.mjs ([600e9b2](https://github.com/natuleadan/mcp-memory/commit/600e9b2328b7e7f74702d93ebe3b94ec79ac7630))
+
+### 📖 Documentation
+
+* update CHANGELOG and README with new architecture overview ([3ae2a82](https://github.com/natuleadan/mcp-memory/commit/3ae2a82223d4fd06f795b3939e2146f190388431))
+
+### ♻️ Refactoring
+
+* **indexer:** consolidate into unified indexer supporting code, docs, chatlogs ([29aba7d](https://github.com/natuleadan/mcp-memory/commit/29aba7d8a77bd0342a1d89686aadc9cba44212bc))
+* **tools:** remove 28 legacy MCP tools in favor of unified data_* API ([fd806f4](https://github.com/natuleadan/mcp-memory/commit/fd806f4836bc456463246cf83bf3e4b5933b4f85))
+
 ## [2.1.1](https://github.com/natuleadan/mcp-memory/compare/v2.1.0...v2.1.1) (2026-03-29)
 
 ### 🐛 Bug Fixes

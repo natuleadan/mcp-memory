@@ -1,18 +1,15 @@
 import 'dotenv/config'
 import * as lancedb from '@lancedb/lancedb'
-import { Ollama } from 'ollama'
 import { readFileSync, readdirSync, statSync } from 'fs'
 import { join, relative } from 'path'
-import { ensureOllama } from './ollama-utils.js'
+import { ensureOllama, embedTexts } from '../functions/indexing/embedding.js'
+import { chunkParagraphs } from '../functions/indexing/chunking.js'
 
-const ollama = new Ollama({ host: process.env.OLLAMA_HOST ?? 'http://localhost:11434' })
 const LANCEDB_DIR = process.env.LANCEDB_DIR!
 const CHATLOG_DIR = process.env.CHATLOG_DIR!
 const BATCH_SIZE = 10
 const MAX_CHARS = 1800
 const TABLE_NAME = 'chatlogs'
-
-// All plain-text files that may be chatlogs
 const ALLOWED_EXTS = new Set(['.md', '.txt', '.json'])
 
 type Chunk = {
@@ -43,38 +40,6 @@ function collectFiles(dir: string): { path: string; mtime: number }[] {
   return files
 }
 
-function chunkParagraphs(content: string): string[] {
-  const paragraphs = content.split(/\n{2,}/)
-  const chunks: string[] = []
-  let current = ''
-  for (const p of paragraphs) {
-    if (current.length + p.length > MAX_CHARS && current.length > 0) {
-      chunks.push(current.trim())
-      current = p
-    } else {
-      current += '\n\n' + p
-    }
-  }
-  if (current.trim().length >= 30) chunks.push(current.trim())
-  return chunks
-}
-
-async function embed(texts: string[]): Promise<(number[] | null)[]> {
-  const results: (number[] | null)[] = []
-  for (const text of texts) {
-    try {
-      const res = await ollama.embeddings({
-        model: 'nomic-embed-text',
-        prompt: text.slice(0, MAX_CHARS),
-      })
-      results.push(res.embedding)
-    } catch {
-      results.push(null)
-    }
-  }
-  return results
-}
-
 async function main() {
   await ensureOllama()
 
@@ -95,7 +60,6 @@ async function main() {
   const files = collectFiles(CHATLOG_DIR)
   console.log(`    📄 ${files.length} files found`)
 
-  // Detect modified files
   const staleIds: string[] = []
   for (const [id, mtime] of existingChunks) {
     const relPath = id.split('#')[0]
@@ -139,7 +103,7 @@ async function main() {
   const chunks: Chunk[] = []
   for (let i = 0; i < allChunks.length; i += BATCH_SIZE) {
     const batch = allChunks.slice(i, i + BATCH_SIZE)
-    const vectors = await embed(batch.map((c) => c.text))
+    const vectors = await embedTexts(batch.map((c) => c.text), MAX_CHARS)
     for (let j = 0; j < batch.length; j++) {
       if (vectors[j] !== null) chunks.push({ ...batch[j], vector: vectors[j]! })
     }

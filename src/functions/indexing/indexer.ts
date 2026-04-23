@@ -1,33 +1,17 @@
-import 'dotenv/config'
 import * as lancedb from '@lancedb/lancedb'
-import { Ollama } from 'ollama'
 import { readFileSync, readdirSync, statSync } from 'fs'
 import { join, relative } from 'path'
-import { ensureOllama } from './ollama-utils.js'
+import { embedTexts } from './embedding.js'
+import { chunkCode, chunkParagraphs } from './chunking.js'
 
-const ollama = new Ollama({ host: process.env.OLLAMA_HOST ?? 'http://localhost:11434' })
-const LANCEDB_DIR = process.env.LANCEDB_DIR!
+const IGNORE_DIRS = new Set([
+  'node_modules', '.git', '.next', 'dist', 'build', '.turbo',
+  'coverage', '.cache', 'out', '.pnpm-store',
+])
 const BATCH_SIZE = 10
 const MAX_CHARS = 1800
 
-const IGNORE_DIRS = new Set([
-  'node_modules',
-  '.git',
-  '.next',
-  'dist',
-  'build',
-  '.turbo',
-  'coverage',
-  '.cache',
-  'out',
-  '.pnpm-store',
-])
-
-const CODE_EXTS = new Set(['.ts', '.tsx', '.js', '.jsx', '.mjs', '.mts', '.sh'])
-const DOC_EXTS = new Set(['.md', '.sql', '.json', '.env.example', '.yml', '.yaml'])
-const CHATLOG_EXTS = new Set(['.md'])
-
-type Chunk = {
+export type Chunk = {
   id: string
   source: string
   rel_path: string
@@ -37,15 +21,26 @@ type Chunk = {
   vector: number[]
 }
 
-function log(msg: string) {
+export function log(msg: string) {
   console.log(`  ${msg}`)
 }
 
-function section(msg: string) {
-  console.log(`\n  ${msg}`)
+export function section(msg: string) {
+  console.log(`\n  📚 ${msg}`)
 }
 
-function collectFiles(dir: string, allowedExts: Set<string>): { path: string; mtime: number }[] {
+export function start() {
+  console.log(`\n  ⚡ Indexing\n`)
+}
+
+export function done() {
+  console.log(`\n  ✅ Done\n`)
+}
+
+export function collectFiles(
+  dir: string,
+  allowedExts: Set<string>
+): { path: string; mtime: number }[] {
   const files: { path: string; mtime: number }[] = []
   for (const entry of readdirSync(dir)) {
     if (IGNORE_DIRS.has(entry)) continue
@@ -54,77 +49,25 @@ function collectFiles(dir: string, allowedExts: Set<string>): { path: string; mt
     if (stat.isDirectory()) {
       files.push(...collectFiles(full, allowedExts))
     } else {
-      const ext = '.' + entry.split('.').pop()!
-      if (allowedExts.has(ext)) files.push({ path: full, mtime: Math.floor(stat.mtimeMs) })
+      if (allowedExts.size === 0) {
+        files.push({ path: full, mtime: Math.floor(stat.mtimeMs) })
+      } else {
+        const ext = '.' + entry.split('.').pop()!
+        if (allowedExts.has(ext)) files.push({ path: full, mtime: Math.floor(stat.mtimeMs) })
+      }
     }
   }
   return files
 }
 
-function chunkCode(content: string): string[] {
-  const BLOCK_START =
-    /^(export\s+)?(async\s+)?(function|class|const\s+\w+\s*=|type\s+\w+|interface\s+\w+|enum\s+\w+)/
-  const lines = content.split('\n')
-  const chunks: string[] = []
-  let current: string[] = []
-
-  const flush = () => {
-    const text = current.join('\n').trim()
-    if (text.length >= 30) chunks.push(text)
-    current = []
-  }
-
-  for (const line of lines) {
-    if (BLOCK_START.test(line) && current.length > 0) {
-      if (current.join('\n').length + line.length > MAX_CHARS) flush()
-    }
-    current.push(line)
-    if (current.join('\n').length > MAX_CHARS) flush()
-  }
-  flush()
-  return chunks
-}
-
-function chunkParagraphs(content: string): string[] {
-  const paragraphs = content.split(/\n{2,}/)
-  const chunks: string[] = []
-  let current = ''
-  for (const p of paragraphs) {
-    if (current.length + p.length > MAX_CHARS && current.length > 0) {
-      chunks.push(current.trim())
-      current = p
-    } else {
-      current += '\n\n' + p
-    }
-  }
-  if (current.trim().length >= 30) chunks.push(current.trim())
-  return chunks
-}
-
-async function embed(texts: string[]): Promise<(number[] | null)[]> {
-  const results: (number[] | null)[] = []
-  for (const text of texts) {
-    try {
-      const res = await ollama.embeddings({
-        model: 'nomic-embed-text',
-        prompt: text.slice(0, MAX_CHARS),
-      })
-      results.push(res.embedding)
-    } catch {
-      results.push(null)
-    }
-  }
-  return results
-}
-
-async function indexTable(
+export async function indexTable(
   db: Awaited<ReturnType<typeof lancedb.connect>>,
   tableName: string,
   sourceDir: string,
   allowedExts: Set<string>,
   isCode: boolean
 ) {
-  section(`${tableName}`)
+  section(tableName)
 
   let existingChunks = new Map<string, number>()
   let table: Awaited<ReturnType<typeof db.openTable>> | null = null
@@ -184,7 +127,7 @@ async function indexTable(
   const chunks: Chunk[] = []
   for (let i = 0; i < allChunks.length; i += BATCH_SIZE) {
     const batch = allChunks.slice(i, i + BATCH_SIZE)
-    const vectors = await embed(batch.map((c) => c.text))
+    const vectors = await embedTexts(batch.map((c) => c.text), MAX_CHARS)
     for (let j = 0; j < batch.length; j++) {
       if (vectors[j] !== null) chunks.push({ ...batch[j], vector: vectors[j]! })
     }
@@ -200,26 +143,3 @@ async function indexTable(
   }
   log(`${chunks.length} chunks indexed`)
 }
-
-async function main() {
-  await ensureOllama()
-  const SOURCE_DIR = process.env.CODING_DIR!
-  const CHATLOGS_DIR = process.env.CHATLOG_DIR!
-  const MODE = process.argv[2] ?? 'all'
-
-  const db = await lancedb.connect(LANCEDB_DIR)
-
-  section('Indexing')
-
-  if (MODE === 'code' || MODE === 'all') {
-    await indexTable(db, 'codebase', SOURCE_DIR, CODE_EXTS, true)
-  }
-  if (MODE === 'docs' || MODE === 'all') {
-    await indexTable(db, 'docs', SOURCE_DIR, DOC_EXTS, false)
-  }
-  if (MODE === 'chatlogs' || MODE === 'all') {
-    await indexTable(db, 'chatlogs', CHATLOGS_DIR, CHATLOG_EXTS, false)
-  }
-}
-
-main().catch(console.error)

@@ -65,13 +65,14 @@ Each memory has:
 | `reference` | Pointers to external systems, tools, docs |
 | `pending` | Open tasks and follow-ups |
 
-### 2. Indexed Sources (4 tables)
+### 2. Indexed Sources (5 tables)
 
 | Table | Source | Description |
 |-------|--------|-------------|
 | `memories` | `./memories/` | Structured entries with types |
 | `codebase` | `./coding/` | Source code (.ts, .tsx, .js, .jsx) |
 | `docs` | `./coding/` | Documentation (.md, .sql, .json) |
+| `reference` | `./reference/` | User-provided code examples, guides, and learning materials |
 | `chatlogs` | `./chatlogs/` | Conversation history |
 
 Default directories are relative to the project root. Configure via environment variables or use defaults.
@@ -82,6 +83,7 @@ If no `.env` is configured, the following defaults are used:
 - `vectorial/` — LanceDB storage
 - `memories/` — Markdown memory vault
 - `coding/` — Code to index (you need to place your project here or configure `CODING_DIR`)
+- `reference/` — User-provided code examples and learning materials
 - `chatlogs/` — Conversation history
 
 ### 3. Version History (`memory_versions` table)
@@ -174,11 +176,21 @@ pnpm start             # start MCP server
 
 ## Indexing
 
+### Upload (Markdown → Vector DB)
+
 ```bash
-pnpm index:all           # code + docs + chatlogs
+pnpm index               # code + docs + reference + chatlogs (all sources)
 pnpm index:code          # source code only
 pnpm index:docs          # documentation only
+pnpm index:reference     # user-provided guides and examples
 pnpm index:chatlogs      # conversation history only
+```
+
+### Download (Vector DB → Markdown)
+
+```bash
+pnpm download            # export all memories to markdown
+pnpm download:memories   # export memories only
 ```
 
 Indexers are incremental — only new or modified files are processed.
@@ -187,7 +199,7 @@ To reindex from scratch:
 
 ```bash
 rm -rf ./vectorial/
-pnpm index:all
+pnpm index
 ```
 
 ---
@@ -198,9 +210,10 @@ pnpm index:all
 |----------|-------------|
 | `OLLAMA_HOST` | Ollama server URL (default: `http://localhost:11434`) |
 | `CODING_DIR` | Path to code repository to index (default: `../coding`) |
-| `CHATLOG_DIR` | Path to chatlogs folder (default: `./chatlogs`) |
-| `LANCEDB_DIR` | Path to LanceDB storage (default: `./vectorial`) |
-| `MEMORIES_DIR` | Path to memories vault (default: `./memories`) |
+| `CHATLOG_DIR` | Path to chatlogs folder (default: `../_memory/chatlogs`) |
+| `REFERENCE_DIR` | Path to user-provided guides and examples (default: `../_memory/reference`) |
+| `LANCEDB_DIR` | Path to LanceDB storage (default: `../_memory/vectorial`) |
+| `MEMORIES_DIR` | Path to memories vault (default: `../_memory/memories`) |
 | `MEMORIES_WRITE_ENABLED` | Enable writing to vault (default: `true`) |
 
 ---

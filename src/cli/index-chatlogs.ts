@@ -1,25 +1,21 @@
 import 'dotenv/config'
 import * as lancedb from '@lancedb/lancedb'
-import { Ollama } from 'ollama'
 import { readFileSync, readdirSync, statSync } from 'fs'
 import { join, relative } from 'path'
-import { ensureOllama } from './ollama-utils.js'
+import { ensureOllama, embedTexts } from '../functions/indexing/embedding.js'
+import { chunkParagraphs } from '../functions/indexing/chunking.js'
 
-const ollama = new Ollama({ host: process.env.OLLAMA_HOST ?? 'http://localhost:11434' })
 const LANCEDB_DIR = process.env.LANCEDB_DIR!
 const CHATLOG_DIR = process.env.CHATLOG_DIR!
 const BATCH_SIZE = 10
 const MAX_CHARS = 1800
 const TABLE_NAME = 'chatlogs'
-
-// All plain-text files that may be chatlogs
 const ALLOWED_EXTS = new Set(['.md', '.txt', '.json'])
 
 type Chunk = {
   id: string
   source: string
   rel_path: string
-  date: string
   text: string
   mtime: number
   vector: number[]
@@ -44,54 +40,10 @@ function collectFiles(dir: string): { path: string; mtime: number }[] {
   return files
 }
 
-function extractDate(filePath: string): string {
-  // Try to extract date from path: 2026-03/03.01.md → 2026-03-01
-  const parts = filePath.split('/')
-  const folder = parts.at(-2) ?? ''
-  const file = parts.at(-1)?.replace('.md', '').replace('.txt', '') ?? ''
-  if (/^\d{4}-\d{2}$/.test(folder) && /^\d{2}\.\d{2}$/.test(file)) {
-    const [_, day] = file.split('.')
-    return `${folder}-${day}`
-  }
-  return file || folder
-}
-
-function chunkParagraphs(content: string): string[] {
-  const paragraphs = content.split(/\n{2,}/)
-  const chunks: string[] = []
-  let current = ''
-  for (const p of paragraphs) {
-    if (current.length + p.length > MAX_CHARS && current.length > 0) {
-      chunks.push(current.trim())
-      current = p
-    } else {
-      current += '\n\n' + p
-    }
-  }
-  if (current.trim().length >= 30) chunks.push(current.trim())
-  return chunks
-}
-
-async function embed(texts: string[]): Promise<(number[] | null)[]> {
-  const results: (number[] | null)[] = []
-  for (const text of texts) {
-    try {
-      const res = await ollama.embeddings({
-        model: 'nomic-embed-text',
-        prompt: text.slice(0, MAX_CHARS),
-      })
-      results.push(res.embedding)
-    } catch {
-      results.push(null)
-    }
-  }
-  return results
-}
-
 async function main() {
   await ensureOllama()
 
-  console.log(`📂 Indexing chatlogs: ${CHATLOG_DIR}`)
+  console.log(`\n  📂 Indexing chatlogs: ${CHATLOG_DIR}`)
   const db = await lancedb.connect(LANCEDB_DIR)
 
   let existingChunks = new Map<string, number>()
@@ -100,15 +52,14 @@ async function main() {
     table = await db.openTable(TABLE_NAME)
     const existing = await table.query().select(['id', 'mtime']).toArray()
     existingChunks = new Map(existing.map((r: { id: string; mtime: number }) => [r.id, r.mtime]))
-    console.log(`✅ ${existingChunks.size} chunks already indexed`)
+    console.log(`    ✅ ${existingChunks.size} chunks already indexed`)
   } catch {
-    console.log('🆕 New table, indexing from scratch...')
+    console.log('    🆕 New table, indexing from scratch...')
   }
 
   const files = collectFiles(CHATLOG_DIR)
-  console.log(`📄 ${files.length} files found`)
+  console.log(`    📄 ${files.length} files found`)
 
-  // Detect modified files
   const staleIds: string[] = []
   for (const [id, mtime] of existingChunks) {
     const relPath = id.split('#')[0]
@@ -116,7 +67,7 @@ async function main() {
     if (!fileInfo || fileInfo.mtime > mtime) staleIds.push(id)
   }
   if (staleIds.length > 0 && table) {
-    console.log(`🗑️  Removing ${staleIds.length} stale chunks from modified files...`)
+    console.log(`    🗑️  Removing ${staleIds.length} stale chunks...`)
     const escaped = staleIds.map((id) => `'${id.replace(/'/g, "''")}'`).join(', ')
     await table.delete(`id IN (${escaped})`)
     for (const id of staleIds) existingChunks.delete(id)
@@ -133,27 +84,26 @@ async function main() {
     if (content.length < 30) continue
 
     const relPath = relative(CHATLOG_DIR, file)
-    const date = extractDate(relPath)
     const sections = chunkParagraphs(content)
 
     for (let i = 0; i < sections.length; i++) {
       const id = `${relPath}#${i}`
       if (!existingChunks.has(id)) {
-        allChunks.push({ id, source: file, rel_path: relPath, date, text: sections[i], mtime })
+        allChunks.push({ id, source: file, rel_path: relPath, text: sections[i], mtime })
       }
     }
   }
 
   if (allChunks.length === 0) {
-    console.log('✨ All up to date, nothing new to index.')
+    console.log('    ✨ All up to date')
     return
   }
 
-  console.log(`🔢 ${allChunks.length} new chunks to embed...`)
+  console.log(`    🔢 ${allChunks.length} new chunks to embed...`)
   const chunks: Chunk[] = []
   for (let i = 0; i < allChunks.length; i += BATCH_SIZE) {
     const batch = allChunks.slice(i, i + BATCH_SIZE)
-    const vectors = await embed(batch.map((c) => c.text))
+    const vectors = await embedTexts(batch.map((c) => c.text), MAX_CHARS)
     for (let j = 0; j < batch.length; j++) {
       if (vectors[j] !== null) chunks.push({ ...batch[j], vector: vectors[j]! })
     }
@@ -169,7 +119,7 @@ async function main() {
   } else {
     await db.createTable(TABLE_NAME, chunks)
   }
-  console.log(`✅ ${chunks.length} chunks indexados en [${TABLE_NAME}]`)
+  console.log(`    ✅ ${chunks.length} chunks indexed\n`)
 }
 
 main().catch(console.error)

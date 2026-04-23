@@ -1,7 +1,7 @@
 import 'dotenv/config'
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js'
-import { ensureOllama } from './ollama-utils.js'
+import { ensureOllama } from './functions/indexing/embedding.js'
 import { registerDataSearchTool } from './tools/data-search.js'
 import { registerDataListTool } from './tools/data-list.js'
 import { registerDataCountTool } from './tools/data-count.js'

@@ -109,7 +109,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### 🔧 Chore
 
-* **config:** update gitignore, remove *.env.local, add .ds_store ([4f95a7b](https://github.com/natuleadan/mcp-memory/commit/4f95a7b2e4c14f5a32374d407a774a20c0772ea7))
+* **config:** update gitignore, remove *.env, add .ds_store ([4f95a7b](https://github.com/natuleadan/mcp-memory/commit/4f95a7b2e4c14f5a32374d407a774a20c0772ea7))
 * **i18n:** translate all comments and messages to english ([b893dae](https://github.com/natuleadan/mcp-memory/commit/b893dae3ac60a2670d5b8c91fe20af81c591fdd0))
 * **lint:** add eslint, prettier, and tsconfig with lint+format scripts ([9fb4d48](https://github.com/natuleadan/mcp-memory/commit/9fb4d48336f14b79db4267a44ca146819a385cdb))
 * **mcp-memory:** add conventional commits and semantic release configuration ([647f7b8](https://github.com/natuleadan/mcp-memory/commit/647f7b89fc66b124977ebfb8c830588e99a08520))

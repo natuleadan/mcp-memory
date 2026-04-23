@@ -5,6 +5,16 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.2.2](https://github.com/natuleadan/mcp-memory/compare/v2.2.1...v2.2.2) (2026-04-23)
+
+### 🐛 Bug Fixes
+
+* **indexing:** reorganize helpers into functions and cli entry points ([60f0ae4](https://github.com/natuleadan/mcp-memory/commit/60f0ae46acb2295701be89c0e39f421a37d4c4fb))
+
+### ♻️ Refactoring
+
+* **indexing:** reorganize indexers to helpers and improve visual output ([906dcef](https://github.com/natuleadan/mcp-memory/commit/906dcef126e43e3857392d732fc2834a4a316d0e))
+
 ## [2.2.1](https://github.com/natuleadan/mcp-memory/compare/v2.2.0...v2.2.1) (2026-04-21)
 
 ### 🐛 Bug Fixes

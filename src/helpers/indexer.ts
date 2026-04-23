@@ -26,6 +26,7 @@ const IGNORE_DIRS = new Set([
 const CODE_EXTS = new Set(['.ts', '.tsx', '.js', '.jsx', '.mjs', '.mts', '.sh'])
 const DOC_EXTS = new Set(['.md', '.sql', '.json', '.env.example', '.yml', '.yaml'])
 const CHATLOG_EXTS = new Set(['.md'])
+const REFERENCE_EXTS = new Set() // Empty = accept all files
 
 type Chunk = {
   id: string
@@ -42,7 +43,15 @@ function log(msg: string) {
 }
 
 function section(msg: string) {
-  console.log(`\n  ${msg}`)
+  console.log(`\n  📚 ${msg}`)
+}
+
+function start() {
+  console.log(`\n  ⚡ Indexing\n`)
+}
+
+function done() {
+  console.log(`\n  ✅ Done\n`)
 }
 
 function collectFiles(dir: string, allowedExts: Set<string>): { path: string; mtime: number }[] {
@@ -54,8 +63,12 @@ function collectFiles(dir: string, allowedExts: Set<string>): { path: string; mt
     if (stat.isDirectory()) {
       files.push(...collectFiles(full, allowedExts))
     } else {
-      const ext = '.' + entry.split('.').pop()!
-      if (allowedExts.has(ext)) files.push({ path: full, mtime: Math.floor(stat.mtimeMs) })
+      if (allowedExts.size === 0) {
+        files.push({ path: full, mtime: Math.floor(stat.mtimeMs) })
+      } else {
+        const ext = '.' + entry.split('.').pop()!
+        if (allowedExts.has(ext)) files.push({ path: full, mtime: Math.floor(stat.mtimeMs) })
+      }
     }
   }
   return files
@@ -205,11 +218,12 @@ async function main() {
   await ensureOllama()
   const SOURCE_DIR = process.env.CODING_DIR!
   const CHATLOGS_DIR = process.env.CHATLOG_DIR!
+  const REFERENCE_DIR = process.env.REFERENCE_DIR!
   const MODE = process.argv[2] ?? 'all'
 
   const db = await lancedb.connect(LANCEDB_DIR)
 
-  section('Indexing')
+  start()
 
   if (MODE === 'code' || MODE === 'all') {
     await indexTable(db, 'codebase', SOURCE_DIR, CODE_EXTS, true)
@@ -220,6 +234,10 @@ async function main() {
   if (MODE === 'chatlogs' || MODE === 'all') {
     await indexTable(db, 'chatlogs', CHATLOGS_DIR, CHATLOG_EXTS, false)
   }
+  if (MODE === 'reference' || MODE === 'all') {
+    await indexTable(db, 'reference', REFERENCE_DIR, REFERENCE_EXTS, false)
+  }
+  done()
 }
 
 main().catch(console.error)

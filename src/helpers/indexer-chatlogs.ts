@@ -19,7 +19,6 @@ type Chunk = {
   id: string
   source: string
   rel_path: string
-  date: string
   text: string
   mtime: number
   vector: number[]
@@ -42,18 +41,6 @@ function collectFiles(dir: string): { path: string; mtime: number }[] {
     // dir does not exist or no permissions — skip
   }
   return files
-}
-
-function extractDate(filePath: string): string {
-  // Try to extract date from path: 2026-03/03.01.md → 2026-03-01
-  const parts = filePath.split('/')
-  const folder = parts.at(-2) ?? ''
-  const file = parts.at(-1)?.replace('.md', '').replace('.txt', '') ?? ''
-  if (/^\d{4}-\d{2}$/.test(folder) && /^\d{2}\.\d{2}$/.test(file)) {
-    const [_, day] = file.split('.')
-    return `${folder}-${day}`
-  }
-  return file || folder
 }
 
 function chunkParagraphs(content: string): string[] {
@@ -91,7 +78,7 @@ async function embed(texts: string[]): Promise<(number[] | null)[]> {
 async function main() {
   await ensureOllama()
 
-  console.log(`📂 Indexing chatlogs: ${CHATLOG_DIR}`)
+  console.log(`\n  📂 Indexing chatlogs: ${CHATLOG_DIR}`)
   const db = await lancedb.connect(LANCEDB_DIR)
 
   let existingChunks = new Map<string, number>()
@@ -100,13 +87,13 @@ async function main() {
     table = await db.openTable(TABLE_NAME)
     const existing = await table.query().select(['id', 'mtime']).toArray()
     existingChunks = new Map(existing.map((r: { id: string; mtime: number }) => [r.id, r.mtime]))
-    console.log(`✅ ${existingChunks.size} chunks already indexed`)
+    console.log(`    ✅ ${existingChunks.size} chunks already indexed`)
   } catch {
-    console.log('🆕 New table, indexing from scratch...')
+    console.log('    🆕 New table, indexing from scratch...')
   }
 
   const files = collectFiles(CHATLOG_DIR)
-  console.log(`📄 ${files.length} files found`)
+  console.log(`    📄 ${files.length} files found`)
 
   // Detect modified files
   const staleIds: string[] = []
@@ -116,7 +103,7 @@ async function main() {
     if (!fileInfo || fileInfo.mtime > mtime) staleIds.push(id)
   }
   if (staleIds.length > 0 && table) {
-    console.log(`🗑️  Removing ${staleIds.length} stale chunks from modified files...`)
+    console.log(`    🗑️  Removing ${staleIds.length} stale chunks...`)
     const escaped = staleIds.map((id) => `'${id.replace(/'/g, "''")}'`).join(', ')
     await table.delete(`id IN (${escaped})`)
     for (const id of staleIds) existingChunks.delete(id)
@@ -133,23 +120,22 @@ async function main() {
     if (content.length < 30) continue
 
     const relPath = relative(CHATLOG_DIR, file)
-    const date = extractDate(relPath)
     const sections = chunkParagraphs(content)
 
     for (let i = 0; i < sections.length; i++) {
       const id = `${relPath}#${i}`
       if (!existingChunks.has(id)) {
-        allChunks.push({ id, source: file, rel_path: relPath, date, text: sections[i], mtime })
+        allChunks.push({ id, source: file, rel_path: relPath, text: sections[i], mtime })
       }
     }
   }
 
   if (allChunks.length === 0) {
-    console.log('✨ All up to date, nothing new to index.')
+    console.log('    ✨ All up to date')
     return
   }
 
-  console.log(`🔢 ${allChunks.length} new chunks to embed...`)
+  console.log(`    🔢 ${allChunks.length} new chunks to embed...`)
   const chunks: Chunk[] = []
   for (let i = 0; i < allChunks.length; i += BATCH_SIZE) {
     const batch = allChunks.slice(i, i + BATCH_SIZE)
@@ -169,7 +155,7 @@ async function main() {
   } else {
     await db.createTable(TABLE_NAME, chunks)
   }
-  console.log(`✅ ${chunks.length} chunks indexados en [${TABLE_NAME}]`)
+  console.log(`    ✅ ${chunks.length} chunks indexed\n`)
 }
 
 main().catch(console.error)

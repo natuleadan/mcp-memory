@@ -9,7 +9,7 @@
 import { spawnSync, spawn } from 'child_process'
 import { platform, arch } from 'os'
 
-const REQUIRED_MODEL = 'nomic-embed-text'
+const REQUIRED_MODEL = 'nomic-embed-text-v2-moe'
 const OLLAMA_HOST = process.env.OLLAMA_HOST ?? 'http://localhost:11434'
 
 // ─── Helpers ────────────────────────────────────────────────────────────────

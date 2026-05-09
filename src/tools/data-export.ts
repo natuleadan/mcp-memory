@@ -1,7 +1,6 @@
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
 import { z } from 'zod'
 import { exportToMemories } from '../functions/index.js'
-import { memoryTypeSchema } from '../types/index.js'
 
 export function registerDataExportTool(server: McpServer) {
   server.tool(

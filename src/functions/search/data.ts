@@ -5,7 +5,7 @@ import { LANCEDB_DIR, OLLAMA_HOST, EMBED_DIM } from '../../types/index.js'
 const ollama = new Ollama({ host: OLLAMA_HOST })
 
 export async function embed(text: string): Promise<number[]> {
-  const res = await ollama.embeddings({ model: 'nomic-embed-text', prompt: text })
+  const res = await ollama.embeddings({ model: 'nomic-embed-text-v2-moe', prompt: text })
   return res.embedding
 }
 

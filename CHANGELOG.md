@@ -5,6 +5,24 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.3.0](https://github.com/natuleadan/mcp-memory/compare/v2.2.2...v2.3.0) (2026-05-09)
+
+### ✨ Features
+
+* **cli:** support multiple coding dirs, ignore prefixes, and configurable batch size ([3a7b44d](https://github.com/natuleadan/mcp-memory/commit/3a7b44d0885342bad7dc8f8976b06c82c364cd8a))
+
+### 🐛 Bug Fixes
+
+* **indexer:** crash when coding dir or reference dir env is not set ([0c1e01f](https://github.com/natuleadan/mcp-memory/commit/0c1e01f7144ed0900dc685645e65a1a72b20024c))
+
+### ⚡ Performance
+
+* **embedding:** batch embedding via ollama embed api for gpu utilization ([2565e35](https://github.com/natuleadan/mcp-memory/commit/2565e3591bdac355635b2568949aba8942a5b117))
+
+### 🔧 Chore
+
+* **cli:** update model name and remove unused import ([9ce120b](https://github.com/natuleadan/mcp-memory/commit/9ce120b2ebf1d6e4cfca72a34da4205467a10917))
+
 ## [2.2.2](https://github.com/natuleadan/mcp-memory/compare/v2.2.1...v2.2.2) (2026-04-23)
 
 ### 🐛 Bug Fixes

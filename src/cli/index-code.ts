@@ -7,13 +7,19 @@ const CODE_EXTS = new Set(['.ts', '.tsx', '.js', '.jsx', '.mjs', '.mts', '.sh'])
 
 async function main() {
   await ensureOllama()
-  const SOURCE_DIR = process.env.CODING_DIR!
-  const LANCEDB_DIR = process.env.LANCEDB_DIR!
+  const raw = process.env.CODING_DIR
+  if (!raw) { console.log('  \u2714 CODING_DIR not set, skipped\n'); return }
+  const dirs = raw.split(',').map(s => s.trim()).filter(Boolean)
+  if (dirs.length === 0) { console.log('  \u2714 CODING_DIR not set, skipped\n'); return }
 
+  const LANCEDB_DIR = process.env.LANCEDB_DIR!
   const db = await lancedb.connect(LANCEDB_DIR)
-  start()
-  await indexTable(db, 'codebase', SOURCE_DIR, CODE_EXTS, true)
-  done()
+
+  for (const dir of dirs) {
+    start()
+    await indexTable(db, 'codebase', dir, CODE_EXTS, true)
+    done()
+  }
 }
 
 main().catch(console.error)

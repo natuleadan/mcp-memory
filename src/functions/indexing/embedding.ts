@@ -37,17 +37,13 @@ export async function ensureOllama(): Promise<void> {
 }
 
 export async function embedTexts(texts: string[], maxChars: number): Promise<(number[] | null)[]> {
-  const results: (number[] | null)[] = []
-  for (const text of texts) {
-    try {
-      const res = await ollama.embeddings({
-        model: 'nomic-embed-text',
-        prompt: text.slice(0, maxChars),
-      })
-      results.push(res.embedding)
-    } catch {
-      results.push(null)
-    }
+  try {
+    const res = await ollama.embed({
+      model: 'nomic-embed-text-v2-moe',
+      input: texts.map(t => t.slice(0, maxChars)),
+    })
+    return res.embeddings
+  } catch {
+    return texts.map(() => null)
   }
-  return results
 }

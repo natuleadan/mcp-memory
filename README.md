@@ -215,6 +215,8 @@ pnpm index
 | `LANCEDB_DIR` | Path to LanceDB storage (default: `../_memory/vectorial`) |
 | `MEMORIES_DIR` | Path to memories vault (default: `../_memory/memories`) |
 | `MEMORIES_WRITE_ENABLED` | Enable writing to vault (default: `true`) |
+| `IGNORE_PREFIXES` | Comma-separated prefixes to skip during indexing (default: `_`) |
+| `BATCH_SIZE` | Chunks per batch for embedding and parallel file reads (default: `20`) |
 
 ---
 

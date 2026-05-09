@@ -1,16 +1,29 @@
 import 'dotenv/config'
 import * as lancedb from '@lancedb/lancedb'
-import { readFileSync, readdirSync, statSync } from 'fs'
+import { readdirSync, statSync } from 'fs'
+import { readFile } from 'fs/promises'
 import { join, relative } from 'path'
 import { ensureOllama, embedTexts } from '../functions/indexing/embedding.js'
 import { chunkParagraphs } from '../functions/indexing/chunking.js'
+import { IGNORE_PREFIXES, BATCH_SIZE } from '../types/index.js'
 
 const LANCEDB_DIR = process.env.LANCEDB_DIR!
 const CHATLOG_DIR = process.env.CHATLOG_DIR!
-const BATCH_SIZE = 10
 const MAX_CHARS = 1800
 const TABLE_NAME = 'chatlogs'
 const ALLOWED_EXTS = new Set(['.md', '.txt', '.json'])
+
+const BAR_WIDTH = 16
+
+function n(x: number): string {
+  return x.toLocaleString('en-US')
+}
+
+function bar(current: number, total: number): string {
+  const pct = total > 0 ? Math.min(current / total, 1) : 0
+  const filled = Math.round(pct * BAR_WIDTH)
+  return '\u2588'.repeat(filled) + '\u2591'.repeat(BAR_WIDTH - filled)
+}
 
 type Chunk = {
   id: string
@@ -27,6 +40,7 @@ function collectFiles(dir: string): { path: string; mtime: number }[] {
     for (const entry of readdirSync(dir)) {
       const full = join(dir, entry)
       const stat = statSync(full)
+      if (IGNORE_PREFIXES.some(p => entry.startsWith(p))) continue
       if (stat.isDirectory()) {
         files.push(...collectFiles(full))
       } else {
@@ -43,7 +57,7 @@ function collectFiles(dir: string): { path: string; mtime: number }[] {
 async function main() {
   await ensureOllama()
 
-  console.log(`\n  📂 Indexing chatlogs: ${CHATLOG_DIR}`)
+  console.log(`\n  \u2500\u2500 chatlogs ${'\u2500'.repeat(45)}`)
   const db = await lancedb.connect(LANCEDB_DIR)
 
   let existingChunks = new Map<string, number>()
@@ -52,74 +66,101 @@ async function main() {
     table = await db.openTable(TABLE_NAME)
     const existing = await table.query().select(['id', 'mtime']).toArray()
     existingChunks = new Map(existing.map((r: { id: string; mtime: number }) => [r.id, r.mtime]))
-    console.log(`    ✅ ${existingChunks.size} chunks already indexed`)
+    console.log(`  \u25cf ${n(existingChunks.size)} chunks in DB`)
   } catch {
-    console.log('    🆕 New table, indexing from scratch...')
+    console.log(`  \u25cf New table`)
   }
 
   const files = collectFiles(CHATLOG_DIR)
-  console.log(`    📄 ${files.length} files found`)
+  console.log(`  \u25cf ${n(files.length)} files to scan`)
 
+  const fileMap = new Map(files.map((f) => [relative(CHATLOG_DIR, f.path), f.mtime]))
   const staleIds: string[] = []
   for (const [id, mtime] of existingChunks) {
     const relPath = id.split('#')[0]
-    const fileInfo = files.find((f) => relative(CHATLOG_DIR, f.path) === relPath)
-    if (!fileInfo || fileInfo.mtime > mtime) staleIds.push(id)
+    const fileMtime = fileMap.get(relPath)
+    if (fileMtime === undefined || fileMtime > mtime) staleIds.push(id)
   }
   if (staleIds.length > 0 && table) {
-    console.log(`    🗑️  Removing ${staleIds.length} stale chunks...`)
-    const escaped = staleIds.map((id) => `'${id.replace(/'/g, "''")}'`).join(', ')
-    await table.delete(`id IN (${escaped})`)
+    await table.delete(`id IN (${staleIds.map((id) => `'${id.replace(/'/g, "''")}'`).join(', ')})`)
     for (const id of staleIds) existingChunks.delete(id)
+    console.log(`  \u25cf ${n(staleIds.length)} stale purged`)
   }
 
+  const isNewTable = existingChunks.size === 0
   const allChunks: Omit<Chunk, 'vector'>[] = []
-  for (const { path: file, mtime } of files) {
-    let content: string
-    try {
-      content = readFileSync(file, 'utf-8')
-    } catch {
-      continue
-    }
-    if (content.length < 30) continue
+  let skippedCount = 0
+  for (let fi = 0; fi < files.length; fi += BATCH_SIZE) {
+    const batch = files.slice(fi, fi + BATCH_SIZE)
+    const current = Math.min(fi + BATCH_SIZE, files.length)
+    process.stdout.write(`\r\x1b[K  \u25cf Reading files... ${bar(current, files.length)} ${n(current)}/${n(files.length)}`)
 
-    const relPath = relative(CHATLOG_DIR, file)
-    const sections = chunkParagraphs(content)
+    const contents = await Promise.all(batch.map(async ({ path: file, mtime: mt }) => {
+      try {
+        const content = await readFile(file, 'utf-8')
+        if (content.length < 1024) return null
+        return { file, mtime: mt, content: content.length > 1_048_576 ? content.slice(0, 1_048_576) : content }
+      } catch {
+        return null
+      }
+    }))
 
-    for (let i = 0; i < sections.length; i++) {
-      const id = `${relPath}#${i}`
-      if (!existingChunks.has(id)) {
-        allChunks.push({ id, source: file, rel_path: relPath, text: sections[i], mtime })
+    for (const r of contents) {
+      if (!r) { skippedCount++; continue }
+      const { file, mtime, content } = r
+      const relPath = relative(CHATLOG_DIR, file)
+      const sections = chunkParagraphs(content)
+
+      if (isNewTable) {
+        for (let i = 0; i < sections.length; i++) {
+          allChunks.push({ id: `${relPath}#${i}`, source: file, rel_path: relPath, text: sections[i], mtime })
+        }
+      } else {
+        for (let i = 0; i < sections.length; i++) {
+          const id = `${relPath}#${i}`
+          if (!existingChunks.has(id)) {
+            allChunks.push({ id, source: file, rel_path: relPath, text: sections[i], mtime })
+          }
+        }
       }
     }
   }
+  if (files.length > 0) {
+    process.stdout.write(`\r\x1b[K  \u25cf Reading files... ${bar(files.length, files.length)} ${n(files.length)}/${n(files.length)}\n`)
+  }
+  if (skippedCount > 0) {
+    console.log(`  \u25cf ${n(skippedCount)} files skipped (empty/binary)`)
+  }
 
   if (allChunks.length === 0) {
-    console.log('    ✨ All up to date')
+    console.log(`  \u2714 Up to date\n`)
     return
   }
 
-  console.log(`    🔢 ${allChunks.length} new chunks to embed...`)
-  const chunks: Chunk[] = []
+  console.log(`  \u25cf ${n(allChunks.length)} new chunks to embed`)
+  let totalWritten = 0
   for (let i = 0; i < allChunks.length; i += BATCH_SIZE) {
     const batch = allChunks.slice(i, i + BATCH_SIZE)
     const vectors = await embedTexts(batch.map((c) => c.text), MAX_CHARS)
+    const batchChunks: Chunk[] = []
     for (let j = 0; j < batch.length; j++) {
-      if (vectors[j] !== null) chunks.push({ ...batch[j], vector: vectors[j]! })
+      if (vectors[j] !== null) batchChunks.push({ ...batch[j], vector: vectors[j]! })
     }
-    const done = Math.min(i + BATCH_SIZE, allChunks.length)
-    process.stdout.write(
-      `\r  ${done}/${allChunks.length} chunks (${Math.round((done / allChunks.length) * 100)}%)`
-    )
+    if (batchChunks.length > 0) {
+      if (!table) {
+        table = await db.createTable(TABLE_NAME, batchChunks)
+      } else {
+        await table.add(batchChunks)
+      }
+      totalWritten += batchChunks.length
+    }
+    const current = Math.min(i + BATCH_SIZE, allChunks.length)
+    process.stdout.write(`\r\x1b[K  \u25cf Embedding... ${bar(current, allChunks.length)} ${n(current)}/${n(allChunks.length)}`)
   }
   console.log()
-
-  if (table) {
-    await table.add(chunks)
-  } else {
-    await db.createTable(TABLE_NAME, chunks)
-  }
-  console.log(`    ✅ ${chunks.length} chunks indexed\n`)
+  console.log(`  \u25cf ${n(totalWritten)} chunks written to DB`)
+  console.log(`  ${'\u2500'.repeat(52)}`)
+  console.log(`  \u2714 Done\n`)
 }
 
 main().catch(console.error)

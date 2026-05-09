@@ -131,9 +131,14 @@ Edit `.env` with your paths:
 
 ```env
 OLLAMA_HOST=http://localhost:11434
-FULLSTACK_DIR=/absolute/path/to/your/project   # repo to index for search_codebase / search_docs
-CHATLOG_DIR=/absolute/path/to/your/chatlogs    # folder to index for search_memory
-LANCEDB_DIR=/absolute/path/to/mcp-memory/data  # where LanceDB stores vector indexes
+CODING_DIR=/absolute/path/to/workspace1,/absolute/path/to/workspace2
+REFERENCE_DIR=/absolute/path/to/reference
+CHATLOG_DIR=/absolute/path/to/_memory/chatlogs
+LANCEDB_DIR=/absolute/path/to/_memory/vectorial
+MEMORIES_DIR=/absolute/path/to/_memory/memories
+MEMORIES_WRITE_ENABLED=true
+# IGNORE_PREFIXES=_deprecated,_archive
+# BATCH_SIZE=500
 ```
 
 > All paths must be **absolute**. LanceDB stores its data locally — no external DB needed.

@@ -19,3 +19,6 @@ export const CODING_DIR = process.env.CODING_DIR ?? path.join(PROJECT_ROOT, 'cod
 
 export const MEMORIES_WRITE_ENABLED = process.env.MEMORIES_WRITE_ENABLED !== 'false'
 export const OLLAMA_HOST = process.env.OLLAMA_HOST ?? 'http://localhost:11434'
+
+export const IGNORE_PREFIXES = (process.env.IGNORE_PREFIXES ?? '_').split(',').map(s => s.trim()).filter(Boolean)
+export const BATCH_SIZE = parseInt(process.env.BATCH_SIZE ?? '20', 10)
